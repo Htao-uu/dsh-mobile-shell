@@ -801,7 +801,7 @@ window.__ModuleLoader__.load({
       function fallbackPick(kind) {
         if (kind === "camera") makeInput("image/*", "camera", false).click();
         else if (kind === "gallery") makeInput("image/*", null, true).click();
-        else makeInput("", null, true).click();
+        else makeInput("*/*", null, true).click();
       }
 
       const MAX_FILE = 1024 * 1024 * 1024;

@@ -182,3 +182,119 @@ result: { uploadId, offset, completed, receiptId? }
 3. 正常返回 20 张缩略图：横向可滑，点击可把照片加入输入框待发送；
 4. 照片权限被拒：返回空数组，不崩溃；
 5. 旋转/后台/页面重载后再次打开：接口仍可用或优雅降级。
+
+
+---
+
+## 8. 如果暂不实现原生桥：修 WebView 的文件选择器
+
+当前 DSH Android 的 `onShowFileChooser` 无论何种 input 都只发 `ACTION_OPEN_DOCUMENT` + `*/*`，所以：
+- 拍照 / 相册 input 只会进文件管理器（不会进相机/相册）；
+- 即使插件给「文件」按钮设置了 `*/*`，也会被系统文档 UI 接管。
+
+只改插件无法解决，必须在 App 端按 `FileChooserParams` 分流。最小改法（`MainActivity.java`）：
+
+```java
+private static final int REQ_FILE = 0x1002;
+private static final int REQ_CAMERA = 0x1007;
+private Uri cameraOutput;
+
+@Override
+public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> cb, FileChooserParams params) {
+    if (fileCallback != null) fileCallback.onReceiveValue(null);
+    fileCallback = cb;
+
+    String[] accepts = params == null ? null : params.getAcceptTypes();
+    boolean imagesOnly = accepts != null && accepts.length > 0;
+    if (imagesOnly) {
+        for (String a : accepts) {
+            if (a != null && !a.isEmpty() && !a.startsWith("image/")) { imagesOnly = false; break; }
+        }
+    }
+
+    // 1) <input capture> → 系统相机
+    if (params != null && params.isCaptureEnabled()) {
+        ContentValues values = new ContentValues();
+        values.put(MediaStore.Images.Media.DISPLAY_NAME, "dsh_" + System.currentTimeMillis() + ".jpg");
+        values.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
+        cameraOutput = getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+        Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        intent.putExtra(MediaStore.EXTRA_OUTPUT, cameraOutput);
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+        startActivityForResult(intent, REQ_CAMERA);
+        return true;
+    }
+
+    // 2) accept 只有 image/* → 系统相册 / Photo Picker（不要 ACTION_OPEN_DOCUMENT）
+    if (imagesOnly) {
+        Intent intent;
+        if (Build.VERSION.SDK_INT >= 33) {
+            intent = new Intent(MediaStore.ACTION_PICK_IMAGES);
+            intent.putExtra(MediaStore.EXTRA_PICK_IMAGES_MAX, 20);
+        } else {
+            intent = new Intent(Intent.ACTION_GET_CONTENT);
+            intent.setType("image/*");
+            intent.addCategory(Intent.CATEGORY_OPENABLE);
+        }
+        if (params != null && params.getMode() == FileChooserParams.MODE_OPEN_MULTIPLE) {
+            intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+        }
+        startActivityForResult(Intent.createChooser(intent, "选择图片"), REQ_FILE);
+        return true;
+    }
+
+    // 3) 其余（accept="*/*" 或没有 accept）→ 任意文件
+    Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+    intent.addCategory(Intent.CATEGORY_OPENABLE);
+    intent.setType("*/*");
+    if (params != null && params.getMode() == FileChooserParams.MODE_OPEN_MULTIPLE) {
+        intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+    }
+    startActivityForResult(intent, REQ_FILE);
+    return true;
+}
+```
+
+`onActivityResult` 需要同时处理单张和多张，以及相机结果：
+
+```java
+@Override
+protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+    super.onActivityResult(requestCode, resultCode, data);
+    if (requestCode == REQ_CAMERA) {
+        if (fileCallback != null) {
+            fileCallback.onReceiveValue(resultCode == RESULT_OK && cameraOutput != null
+                    ? new Uri[]{cameraOutput} : null);
+            fileCallback = null;
+        }
+        cameraOutput = null;
+        return;
+    }
+    if (requestCode == REQ_FILE) {
+        if (fileCallback != null) {
+            Uri[] result = null;
+            if (resultCode == RESULT_OK && data != null) {
+                ClipData clip = data.getClipData();
+                if (clip != null) {
+                    result = new Uri[clip.getItemCount()];
+                    for (int i = 0; i < result.length; i++) result[i] = clip.getItemAt(i).getUri();
+                } else if (data.getData() != null) {
+                    result = new Uri[]{data.getData()};
+                }
+            }
+            fileCallback.onReceiveValue(result);
+            fileCallback = null;
+        }
+        return;
+    }
+    // ... existing REQ_MOUNT / REQ_IMPORT / REQ_HOT / REQ_BALL 分支
+}
+```
+
+注意：
+- 相机写 `MediaStore` 后不需要 FileProvider；WebView 需要能读该 content Uri，给 Intent 加 `FLAG_GRANT_READ_URI_PERMISSION` 并在回调前保留即可；
+- 相册优先用 Android 13+ 的 `ACTION_PICK_IMAGES`，旧系统用 `ACTION_GET_CONTENT image/*`；不要用 `ACTION_OPEN_DOCUMENT`，否则会落到文件管理器；
+- 文件分支显式 `*/*`，不要再从上一个 input 继承 `EXTRA_MIME_TYPES`；
+- 若要支持 1GB 任意文件/断点续传，仍建议走第 3.4 节的原生桥，而不是 WebView 文件选择器。
+
+插件侧从 0.6.3 起给「文件」按钮显式传 `accept="*/*"`，相机传 `capture="camera"`，相册传 `accept="image/*"`。
