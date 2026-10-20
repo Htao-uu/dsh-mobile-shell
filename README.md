@@ -9,6 +9,14 @@
 
 dsh-mobile-shell 是一个纯客户端的 DSH Web UI 插件：在窄屏（≤1023px）下把宿主界面整理成接近官方 App 的手机体验，桌面端不做任何改动。
 
+## Screenshots / 截图
+
+以下截图来自独立 demo profile（Test Workspace，360×780 CSS px，1080×2340 输出），不含真实会话数据。
+
+| 首页 | 左侧抽屉 | 设置 | 附件弹层 |
+| --- | --- | --- | --- |
+| ![Home](docs/images/home.png) | ![Left drawer](docs/images/drawer-left.png) | ![Settings](docs/images/settings.png) | ![Attach sheet](docs/images/attach-sheet.png) |
+
 ## Features / 功能
 
 - **移动壳层**：隐藏常驻左侧图标栏，顶栏提供 ☰、右侧详情、新建会话入口。
