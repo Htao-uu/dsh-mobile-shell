@@ -1,6 +1,6 @@
 # DSH Android ⇄ dsh-mobile-shell 原生桥接规范
 
-版本：1.0（对应 dsh-mobile-shell 0.6.0 起）
+版本：1.1（对应 dsh-mobile-shell 0.6.2 起）
 
 插件在 WebView 中检测 `window.DSHNative`。**不存在或调用失败时，插件不显示「最近照片」区域，其余功能照常工作**；拍照/相册/文件按钮退回系统 `<input type=file>`。因此安卓端可以安全地分阶段实现。
 
@@ -57,7 +57,7 @@ webView.evaluateJavascript(
 
 ```json
 params: {}
-result: { "ok": true, "version": 1, "recentPhotos": true, "pickers": false, "resumableUpload": false }
+result: { "ok": true, "version": 1, "recentPhotos": true, "pickers": true, "resumableUpload": false }
 ```
 
 ### 3.2 `recentPhotos`（必需，用于「最近照片」）
@@ -108,9 +108,28 @@ result: {
 - token 有效期建议 5 分钟，单次使用后可失效；
 - 只允许读取用户刚刚选择的媒体，禁止按任意路径提供文件（不要暴露 `file://`、`content://` 直接转发）。
 
-### 3.4 可选扩展（当前插件未使用，预留）
+### 3.4 `pickImages` / `pickFiles`（可选，推荐；用于拍照/相册/文件按钮）
 
-- `pickFiles` / `pickImages` / `takePhoto`：若安卓端做了原生选择器，可返回与 `openRecent` 相同的 `{url,name,mime,size}`；
+插件打开附件弹层时会先调用 `capabilities`；只有返回 `"pickers": true` 时，三个按钮才走原生接口，否则退回 Web `<input type=file>`。
+
+```json
+method: "pickImages"
+params: { "source": "camera" | "gallery", "multiple": true, "max": 20 }
+result: { "ok": true, "files": [ { "url": "http://127.0.0.1:.../asset/...", "name": "IMG_2026.jpg", "mime": "image/jpeg", "size": 3456789 } ] }
+
+method: "pickFiles"
+params: { "multiple": true, "max": 20 }
+result: { "ok": true, "files": [ { "url": "...", "name": "report.pdf", "mime": "application/pdf", "size": 123456 } ] }
+```
+
+- `source: "camera"` 时必须打开系统相机，拍完返回新照片；
+- `source: "gallery"` 时必须打开系统相册/Photo Picker，而不是文件管理器；
+- 返回的 `url` 仍指向本机临时内容服务，规则同 `openRecent`（CORS、Range、随机 token、只读）；
+- 用户取消选择时返回 `{"ok":true,"files":[]}`；
+- **不要在 `capabilities` 里声称 `pickers:true`，除非两个方法都已实现。**
+
+### 3.5 可选扩展
+
 - `releaseAsset`：插件用完照片后可调用 `{id}` 释放；
 - `resumableUpload`：见第 6 节，当前宿主不支持，暂不实现。
 

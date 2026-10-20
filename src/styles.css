@@ -696,7 +696,7 @@ html[data-ds-dark-theme], body[data-ds-dark-theme], [data-ds-dark-theme] {
   .dms-attach-backdrop {
     display: none;
     position: fixed; inset: 0; z-index: 2147482600;
-    background: rgba(16, 19, 26, 0.18);
+    background: transparent;
   }
   html.dms-attach-open .dms-attach-backdrop { display: block; }
   .dms-attach-sheet {
@@ -750,6 +750,10 @@ html[data-ds-dark-theme], body[data-ds-dark-theme], [data-ds-dark-theme] {
   html.dms-kb-open [data-composer-seat] {
     transform: translateY(calc(-1 * var(--dms-kb, 0px))) !important;
     transition: transform 0.16s ease-out !important;
+  }
+  html.dms-attach-open [data-composer-seat] {
+    transform: translateY(calc(-1 * var(--dms-sheet-h, 0px))) !important;
+    transition: transform 0.18s ease-out !important;
   }
   @keyframes dms-drawer-in {
     from { transform: translateX(-100%); }

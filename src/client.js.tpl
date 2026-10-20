@@ -35,7 +35,10 @@ window.__ModuleLoader__.load({
     const ICONS = {
       menu: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>',
       plus: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
-      panel: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><path d="M14.5 4.5v15"/></svg>'
+      panel: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><path d="M14.5 4.5v15"/></svg>',
+      camera: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M4 8.5h3l1.4-2h7.2L17 8.5h3A1.5 1.5 0 0 1 21.5 10v7.5A1.5 1.5 0 0 1 20 19H4a1.5 1.5 0 0 1-1.5-1.5V10A1.5 1.5 0 0 1 4 8.5Z"/><circle cx="12" cy="13.7" r="3.3"/></svg>',
+      image: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2.5"/><circle cx="8.2" cy="9.2" r="1.6"/><path d="m4.8 17 4.4-4.3 3 2.8 2.6-2.3 4.4 3.8"/></svg>',
+      file: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M6 3.5h7l5 5v12H6z"/><path d="M13 3.5v5h5"/></svg>'
     };
 
     const $ = (sel, root) => (root || document).querySelector(sel);
@@ -669,6 +672,8 @@ window.__ModuleLoader__.load({
       let recentWrap = null;
       let recentStrip = null;
       let nativeSeq = 0;
+      let nativeCaps = null;
+      let nativeCapsPromise = null;
       const nativePending = new Map();
 
       const nativeBridge = () => {
@@ -732,10 +737,10 @@ window.__ModuleLoader__.load({
         }
       }
 
-      function makeInput(accept, capture) {
+      function makeInput(accept, capture, multiple) {
         const input = document.createElement("input");
         input.type = "file";
-        input.multiple = true;
+        input.multiple = multiple !== false;
         input.hidden = true;
         if (accept) input.accept = accept;
         if (capture) input.setAttribute("capture", capture);
@@ -749,11 +754,54 @@ window.__ModuleLoader__.load({
         return input;
       }
 
+      function loadNativeCaps() {
+        if (nativeBridge() === null) return Promise.resolve(null);
+        if (nativeCapsPromise !== null) return nativeCapsPromise;
+        nativeCapsPromise = nativeCall("capabilities", {}, 1200).then((caps) => {
+          nativeCaps = caps || null;
+          return nativeCaps;
+        }).catch(() => null);
+        return nativeCapsPromise;
+      }
+
+      async function pickNative(kind) {
+        const source = kind === "camera" ? "camera" : kind === "gallery" ? "gallery" : "files";
+        const method = kind === "files" ? "pickFiles" : "pickImages";
+        const params = kind === "files" ? { multiple: true, max: 20 } : { source, multiple: kind !== "camera", max: 20 };
+        const reply = await nativeCall(method, params, 600000);
+        const items = reply && Array.isArray(reply.files) ? reply.files : [];
+        if (items.length === 0) return true;
+        const files = [];
+        for (const item of items) {
+          if (!item || typeof item.url !== "string") continue;
+          const response = await fetch(item.url);
+          if (!response.ok) continue;
+          const blob = await response.blob();
+          files.push(new File([blob], item.name || (kind === "camera" ? "camera.jpg" : "file"), { type: item.mime || blob.type || "application/octet-stream" }));
+        }
+        if (files.length > 0) intake(files);
+        return true;
+      }
+
       function pickFromDevice(kind) {
-        if (kind === "camera") makeInput("image/*", "environment").click();
-        else if (kind === "gallery") makeInput("image/*").click();
-        else makeInput("").click();
         closeSheet();
+        if (nativeBridge() === null) {
+          fallbackPick(kind);
+          return;
+        }
+        loadNativeCaps().then((caps) => {
+          if (caps !== null && caps.pickers === true) {
+            pickNative(kind).catch(() => { fallbackPick(kind); });
+          } else {
+            fallbackPick(kind);
+          }
+        });
+      }
+
+      function fallbackPick(kind) {
+        if (kind === "camera") makeInput("image/*", "camera", false).click();
+        else if (kind === "gallery") makeInput("image/*", null, true).click();
+        else makeInput("", null, true).click();
       }
 
       const MAX_FILE = 1024 * 1024 * 1024;
@@ -836,6 +884,11 @@ window.__ModuleLoader__.load({
         }
       }
 
+      function measureSheet() {
+        if (sheet === null) return;
+        const height = root.classList.contains("dms-attach-open") ? sheet.getBoundingClientRect().height : 0;
+        root.style.setProperty("--dms-sheet-h", height + "px");
+      }
       function openSheet() {
         ensureUi();
         const add = $('[data-composer-card] button[aria-haspopup="listbox"], [class*="_inputBar"] button[aria-haspopup="listbox"]');
@@ -843,11 +896,15 @@ window.__ModuleLoader__.load({
         root.classList.add("dms-attach-open");
         const active = document.activeElement;
         if (active instanceof HTMLElement) active.blur();
+        requestAnimationFrame(measureSheet);
+        loadNativeCaps();
         renderRecent();
       }
       function closeSheet() {
         root.classList.remove("dms-attach-open");
+        root.style.setProperty("--dms-sheet-h", "0px");
       }
+      window.addEventListener("resize", measureSheet);
       function toggleSheet() {
         if (root.classList.contains("dms-attach-open")) closeSheet();
         else openSheet();
