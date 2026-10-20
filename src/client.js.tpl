@@ -616,10 +616,33 @@ window.__ModuleLoader__.load({
       } catch (error) { /* read-only DOM shims */ }
     }
 
+    let autoWorkspaceTried = false;
+    function maybeRestoreWorkspace() {
+      if (!isPhone() || autoWorkspaceTried) return;
+      const ui = ctxRef && ctxRef.uiWorkspace;
+      const workspaces = ctxRef && ctxRef.workspaces;
+      if (!ui || !workspaces || typeof workspaces.list?.getSnapshot !== "function") return;
+      const snapshot = workspaces.list.getSnapshot();
+      if (!snapshot || snapshot.phase !== "ready" || !Array.isArray(snapshot.items) || snapshot.items.length === 0) return;
+      const placeholder = $("[data-composer-placeholder]");
+      const text = placeholder === null ? "" : (placeholder.textContent || "").trim();
+      const noWorkspace = text.indexOf("选择一个工作区开始") >= 0 || text.indexOf("Choose a workspace to start") >= 0;
+      if (!noWorkspace) return;
+      autoWorkspaceTried = true;
+      const latest = snapshot.items.slice().sort((a, b) => Date.parse(b.updatedAt || "") - Date.parse(a.updatedAt || ""))[0];
+      if (latest === undefined) return;
+      setTimeout(() => {
+        try {
+          if (typeof ui.startSession === "function") ui.startSession(latest.workspaceId);
+        } catch (error) { /* host may be busy; user can still pick manually */ }
+      }, 350);
+    }
+
     function sync() {
       const f = frame();
       if (f === null) return;
       f.setAttribute("data-dms-frame", "frame");
+      maybeRestoreWorkspace();
       const root = document.documentElement;
       root.classList.toggle("dms-left-open", leftOpen());
       root.classList.toggle("dms-right-open", rightOpen());
@@ -1044,7 +1067,7 @@ window.__ModuleLoader__.load({
     }
 
     exports.apply = apply;
-    exports.inject = ["layout"];
+    exports.inject = ["layout", "uiWorkspace", "workspaces"];
     return module.exports;
   }
 });
