@@ -38,7 +38,8 @@ window.__ModuleLoader__.load({
       panel: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><path d="M14.5 4.5v15"/></svg>',
       camera: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M4 8.5h3l1.4-2h7.2L17 8.5h3A1.5 1.5 0 0 1 21.5 10v7.5A1.5 1.5 0 0 1 20 19H4a1.5 1.5 0 0 1-1.5-1.5V10A1.5 1.5 0 0 1 4 8.5Z"/><circle cx="12" cy="13.7" r="3.3"/></svg>',
       image: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2.5"/><circle cx="8.2" cy="9.2" r="1.6"/><path d="m4.8 17 4.4-4.3 3 2.8 2.6-2.3 4.4 3.8"/></svg>',
-      file: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M6 3.5h7l5 5v12H6z"/><path d="M13 3.5v5h5"/></svg>'
+      file: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M6 3.5h7l5 5v12H6z"/><path d="M13 3.5v5h5"/></svg>',
+      check: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4.5 4.5L19 7"/></svg>'
     };
 
     const $ = (sel, root) => (root || document).querySelector(sel);
@@ -352,6 +353,7 @@ window.__ModuleLoader__.load({
       let mode = null;
       let startX = 0, startY = 0, width = 0, locked = false;
       let lastX = 0, lastT = 0, velocity = 0, lastDx = 0;
+      let samples = [];
       let activeEl = null, centerEl = null, springRaf = 0, drawerX = 0;
       const root = document.documentElement;
       const drawerWidth = () => Math.min(326, Math.round(window.innerWidth * 0.8));
@@ -379,6 +381,7 @@ window.__ModuleLoader__.load({
           activeEl.style.setProperty("animation", "none", "important");
           activeEl.style.setProperty("transition", "none", "important");
           activeEl.style.setProperty("transform", "translate3d(" + Math.round(x) + "px,0,0)", "important");
+          activeEl.style.setProperty("will-change", "transform", "important");
         }
         if (centerEl === null) centerEl = $('[class*="_centerCol"]');
         if (centerEl !== null) {
@@ -387,6 +390,7 @@ window.__ModuleLoader__.load({
           centerEl.style.setProperty("transition", "none", "important");
           centerEl.style.setProperty("transform", "translate3d(" + Math.round(shift) + "px,0,0)", "important");
           centerEl.style.setProperty("opacity", String(1 - 0.7 * progress), "important");
+          centerEl.style.setProperty("will-change", "transform, opacity", "important");
         }
         drawerX = x;
       };
@@ -397,11 +401,13 @@ window.__ModuleLoader__.load({
           activeEl.style.removeProperty("transform");
           activeEl.style.removeProperty("transition");
           activeEl.style.removeProperty("animation");
+          activeEl.style.removeProperty("will-change");
         }
         if (centerEl !== null) {
           centerEl.style.removeProperty("transform");
           centerEl.style.removeProperty("opacity");
           centerEl.style.removeProperty("transition");
+          centerEl.style.removeProperty("will-change");
         }
         activeEl = null;
       };
@@ -455,6 +461,7 @@ window.__ModuleLoader__.load({
         if ($('[data-composer-card]') === null && !leftOpen() && !rightOpen()) return;
         const t = e.touches[0];
         startX = t.clientX; startY = t.clientY; lastX = startX; lastT = performance.now();
+        samples = [{ x: startX, t: lastT }];
         width = window.innerWidth;
         const target = e.target instanceof Element ? e.target : document.elementFromPoint(t.clientX, t.clientY);
         if (leftOpen()) {
@@ -474,8 +481,10 @@ window.__ModuleLoader__.load({
         const dy = t.clientY - startY;
         const now = performance.now();
         lastDx = dx;
-        if (now - lastT > 0) velocity = (t.clientX - lastX) / (now - lastT);
+        if (now - lastT > 0) velocity = velocity * 0.6 + ((t.clientX - lastX) / (now - lastT)) * 0.4;
         lastX = t.clientX; lastT = now;
+        samples.push({ x: t.clientX, t: now });
+        while (samples.length > 2 && now - samples[0].t > 110) samples.shift();
         if (!locked) {
           if (Math.abs(dy) > 12 && Math.abs(dy) >= Math.abs(dx)) { mode = null; return; }
           if (Math.abs(dx) <= LOCK) return;
@@ -538,19 +547,27 @@ window.__ModuleLoader__.load({
         const side = m === "open-left" || m === "close-left" ? "left" : "right";
         const W = drawerWidth();
         const threshold = W * 0.5;
-        const fast = Math.abs(velocity) > 0.125;
+        const endT = performance.now();
+        const recent = samples.filter((s) => endT - s.t <= 110);
+        let stableVelocity = 0;
+        if (recent.length >= 2) {
+          const first = recent[0];
+          const last = recent[recent.length - 1];
+          if (last.t - first.t >= 8) stableVelocity = (last.x - first.x) / (last.t - first.t);
+        }
+        const fast = Math.abs(stableVelocity) > 0.125 && Math.abs(dx) >= 36;
         mode = null; locked = false;
         if (m === "open-left") {
-          if (dx >= threshold || (fast && velocity > 0)) { root.classList.add("dms-left-open", "dms-gesture-opened"); springTo("left", 0, false); }
+          if (dx >= threshold || (fast && stableVelocity > 0)) { root.classList.add("dms-left-open", "dms-gesture-opened"); springTo("left", 0, false); }
           else springTo("left", -W, true, () => closeLeftVisual(false));
         } else if (m === "open-right") {
-          if (-dx >= threshold || (fast && velocity < 0)) { root.classList.add("dms-right-open"); springTo("right", 0, false); }
+          if (-dx >= threshold || (fast && stableVelocity < 0)) { root.classList.add("dms-right-open"); springTo("right", 0, false); }
           else springTo("right", W, true, () => { if (rightOpen()) closeRight(); });
         } else if (m === "close-left") {
-          if (-dx >= threshold || (fast && velocity < 0)) springTo("left", -W, true, () => closeLeftVisual(false));
+          if (-dx >= threshold || (fast && stableVelocity < 0)) springTo("left", -W, true, () => closeLeftVisual(false));
           else { root.classList.add("dms-left-open"); springTo("left", 0, false); }
         } else if (m === "close-right") {
-          if (dx >= threshold || (fast && velocity > 0)) springTo("right", W, true, () => { if (rightOpen()) closeRight(); });
+          if (dx >= threshold || (fast && stableVelocity > 0)) springTo("right", W, true, () => { if (rightOpen()) closeRight(); });
           else { root.classList.add("dms-right-open"); springTo("right", 0, false); }
         } else {
           gestureBusy = false;
@@ -882,7 +899,15 @@ window.__ModuleLoader__.load({
             img.alt = photo.name || "照片";
             img.loading = "lazy";
             cell.appendChild(img);
-            cell.addEventListener("click", () => openRecent(photo.id));
+            const check = document.createElement("span");
+            check.className = "dms-photo-check";
+            check.innerHTML = ICONS.check;
+            cell.appendChild(check);
+            cell.addEventListener("click", () => {
+              if (cell.classList.contains("selected")) return;
+              cell.classList.add("selected");
+              void openRecent(photo.id);
+            });
             recentStrip.appendChild(cell);
           }
           if (recentStrip.childElementCount === 0) recentWrap.hidden = true;
@@ -901,7 +926,6 @@ window.__ModuleLoader__.load({
           const blob = await response.blob();
           const file = new File([blob], reply.name || "photo.jpg", { type: reply.mime || blob.type || "image/jpeg" });
           intake([file]);
-          closeSheet();
         } catch (error) {
           showToast("读取照片失败，请重试");
         }

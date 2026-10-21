@@ -694,21 +694,25 @@ html[data-ds-dark-theme], body[data-ds-dark-theme], [data-ds-dark-theme] {
 
   /* ---------- composer attach sheet --------------------------------------- */
   .dms-attach-backdrop {
-    display: none;
+    display: block;
     position: fixed; inset: 0; z-index: 2147482600;
     background: transparent;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.2s ease-out;
   }
-  html.dms-attach-open .dms-attach-backdrop { display: block; }
+  html.dms-attach-open .dms-attach-backdrop { opacity: 1; pointer-events: auto; }
   .dms-attach-sheet {
-    display: none;
+    display: flex;
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 2147482601;
+    transform: translateY(105%); opacity: 1; pointer-events: none;
+    transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
     background: var(--dms-bg);
     border-radius: 18px 18px 0 0;
     padding: 8px 14px calc(14px + env(safe-area-inset-bottom, 0px));
     box-shadow: 0 -10px 34px rgba(15, 23, 42, 0.18);
     flex-direction: column; gap: 12px;
   }
-  html.dms-attach-open .dms-attach-sheet { display: flex; }
+  html.dms-attach-open .dms-attach-sheet { transform: translateY(0); pointer-events: auto; }
   .dms-attach-handle {
     width: 34px; height: 4px; border-radius: 2px;
     background: var(--dms-line); align-self: center; margin: 2px 0 4px;
@@ -723,9 +727,26 @@ html[data-ds-dark-theme], body[data-ds-dark-theme], [data-ds-dark-theme] {
   .dms-attach-recent-strip::-webkit-scrollbar { display: none; }
   .dms-attach-loading { font-size: 12px; color: var(--dms-text-2); align-self: center; }
   .dms-attach-photo {
+    position: relative;
     flex: 0 0 72px; width: 72px; height: 72px; padding: 0;
     border: 0; border-radius: 10px; overflow: hidden; background: var(--dms-surface-2);
   }
+  .dms-photo-check {
+    position: absolute; top: 4px; right: 4px;
+    width: 17px; height: 17px; border-radius: 50%;
+    background: rgba(0, 0, 0, 0.34); border: 1.5px solid rgba(255, 255, 255, 0.95);
+    color: transparent; display: flex; align-items: center; justify-content: center;
+    box-sizing: border-box;
+  }
+  .dms-attach-photo.selected .dms-photo-check { background: var(--dms-blue); color: #fff; border-color: #fff; }
+  .dms-attach-photo.selected img { opacity: 0.86; }
+  /* host attachment remove control: keep it the official compact size */
+  [class*="_remove"] {
+    width: 18px !important; height: 18px !important;
+    min-width: 18px !important; min-height: 18px !important;
+    font-size: 11px !important; line-height: 1 !important;
+  }
+  [class*="_remove"] svg { width: 10px !important; height: 10px !important; }
   .dms-attach-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .dms-attach-actions { display: flex; gap: 10px; }
   .dms-attach-action {
