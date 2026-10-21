@@ -30,7 +30,7 @@ window.__ModuleLoader__.load({
     const MEDIA = "(max-width: 1023px)";
     const EDGE = 26;
     const TRIGGER = 56;
-    const LOCK = 10;
+    const LOCK = 1;
 
     const ICONS = {
       menu: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>',
@@ -133,6 +133,35 @@ window.__ModuleLoader__.load({
       }
       setTimeout(() => { sidebarExpandBusy = false; }, 900);
     }
+    let lastMountAttempt = 0;
+    function forceMountSidebar() {
+      if (!isPhone() || leftVisible || rightVisible) return;
+      const root = document.documentElement;
+      root.classList.add("dms-preload-left");
+      const f = frame();
+      if (f === null) return;
+      if (!f.hasAttribute("data-sidebar-collapsed")) return;
+      const now = performance.now();
+      if (now - lastMountAttempt < 450) return;
+      lastMountAttempt = now;
+      const layout = ctxRef && ctxRef.layout;
+      if (layout && typeof layout.toggleSidebar === "function") layout.toggleSidebar();
+      else {
+        const col = sidebarCol();
+        const btn = col ? col.querySelector('[class*="_toggle"]') : null;
+        if (btn) btn.click();
+      }
+    }
+
+    function preloadSidebar() {
+      if (!isPhone() || leftVisible || rightOpen() || settingsPanel() !== null) return;
+      if (hostLeftOpen() || sidebarExpandBusy) return;
+      if (performance.now() - rightActivityAt < 450) return;
+      const root = document.documentElement;
+      root.classList.add("dms-preload-left");
+      ensureSidebarMounted();
+    }
+
     function repairLeftHost() {
       if (leftRepairTimer !== 0) { clearTimeout(leftRepairTimer); leftRepairTimer = 0; }
       if (!leftVisible) return;
@@ -151,12 +180,24 @@ window.__ModuleLoader__.load({
     function openLeftVisual() {
       leftVisible = true;
       const root = document.documentElement;
+      const center = $('[class*="_centerCol"]');
+      if (center !== null) {
+        center.style.setProperty("transform", "none", "important");
+        center.style.setProperty("opacity", "1", "important");
+      }
       root.classList.remove("dms-preload-left", "dms-left-hide");
       root.classList.add("dms-left-open");
-      ensureSidebarMounted();
+      const col = sidebarCol();
+      if (col !== null) {
+        col.style.setProperty("animation", "none", "important");
+        col.style.setProperty("transition", "none", "important");
+        col.style.setProperty("transform", "none", "important");
+        col.style.setProperty("z-index", "90", "important");
+      }
       repairLeftHost();
     }
     function closeLeftVisual(animated) {
+      if (!leftVisible) return;
       leftVisible = false;
       if (leftRepairTimer !== 0) { clearTimeout(leftRepairTimer); leftRepairTimer = 0; }
       const root = document.documentElement;
@@ -385,12 +426,12 @@ window.__ModuleLoader__.load({
         }
         if (centerEl === null) centerEl = $('[class*="_centerCol"]');
         if (centerEl !== null) {
-          const shift = side === "left" ? W + x : x - W;
-          const progress = Math.max(0, Math.min(1, Math.abs(shift) / W));
+          // Drawers overlay the page; never translate/fade the page itself.
+          // Pushing it exposed a blank strip while the host sidebar was still
+          // mounting, which reads as a white flash on the first open.
           centerEl.style.setProperty("transition", "none", "important");
-          centerEl.style.setProperty("transform", "translate3d(" + Math.round(shift) + "px,0,0)", "important");
-          centerEl.style.setProperty("opacity", String(1 - 0.7 * progress), "important");
-          centerEl.style.setProperty("will-change", "transform, opacity", "important");
+          centerEl.style.setProperty("transform", "none", "important");
+          centerEl.style.setProperty("opacity", "1", "important");
         }
         drawerX = x;
       };
@@ -490,6 +531,7 @@ window.__ModuleLoader__.load({
           if (Math.abs(dx) <= LOCK) return;
           if (mode === "pending") {
             mode = dx > 0 ? "open-left" : "open-right";
+            root.classList.add(dragClassFor(mode));
             const openSide = mode === "open-left" ? "left" : "right";
             if (openSide === "left") {
               root.classList.add("dms-gesture-arming");
@@ -520,7 +562,6 @@ window.__ModuleLoader__.load({
           else if (mode === "open-right") visualX = drawerWidth();
           else visualX = 0;
           lastFrameT = performance.now();
-          root.classList.add(dragClassFor(mode));
         }
         if (e.cancelable) e.preventDefault();
         const W = drawerWidth();
@@ -683,6 +724,7 @@ window.__ModuleLoader__.load({
       for (const extra of $$('[class*="_statusLine"], [class*="_sessionStats"]')) normalizeSeparators(extra);
       const hero = $('[class*="_composerHero"]');
       root.classList.toggle("dms-hero-home", hero !== null && panel === null);
+      if (isPhone() && !leftVisible && !rightVisible) forceMountSidebar();
     }
 
     function installDrawerAutoClose() {

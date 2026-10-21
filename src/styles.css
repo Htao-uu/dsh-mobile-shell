@@ -40,6 +40,7 @@ html[data-ds-dark-theme], body[data-ds-dark-theme], [data-ds-dark-theme] {
     padding-top: env(safe-area-inset-top, 0px) !important;
   }
   [class*="_centerCol"] { grid-column: 2 !important; background: var(--dms-bg) !important; }
+  [class*="_frame"] > [class*="_sidebarCol"] { background: var(--dms-bg) !important; }
   [class*="_rightbarCol"] { grid-column: 3 !important; }
   [class*="_bottomRow"],
   [class*="_composerStack"], [class*="_composerHero"],
@@ -205,13 +206,18 @@ html[data-ds-dark-theme], body[data-ds-dark-theme], [data-ds-dark-theme] {
 
   /* official carousel: the page is pushed aside and fades while a drawer opens */
   html.dms-left-open [class*="_centerCol"] {
-    transform: translateX(min(326px, 80vw)) !important;
-    opacity: 0.3 !important;
+    /* overlay instead of push: pushing the page off-screen exposed a blank
+       white strip while the host sidebar was still mounting (first open). */
+    transform: none !important;
+    opacity: 1 !important;
     transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
   }
   html.dms-right-open [class*="_centerCol"] {
-    transform: translateX(calc(-1 * min(326px, 80vw))) !important;
-    opacity: 0.3 !important;
+    /* overlay the right panel on the page instead of pushing it off-screen:
+       pushing left exposed a blank strip while the host panel mounted, which
+       read as a white flash. */
+    transform: none !important;
+    opacity: 1 !important;
     transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
   }
   html:not(.dms-left-open):not(.dms-right-open) [class*="_centerCol"] {
@@ -629,10 +635,21 @@ html[data-ds-dark-theme], body[data-ds-dark-theme], [data-ds-dark-theme] {
 
   /* the host sidebar is kept mounted (preloaded) and pinned off-screen; opening slides it in */
   html.dms-preload-left [class*="_frame"] > [class*="_sidebarCol"] {
-    transform: translateX(-100%) !important;
+    /* Keep the host sidebar expanded and *under* the opaque page. It is fully
+       visible to the renderer (so plugins/sidebar content paint before the
+       first touch) but covered by centerCol; opening only raises its z-index.
+       Off-screen/opacity-0 preloads skipped paint and produced a white first frame. */
+    transform: none !important;
+    opacity: 1 !important;
+    z-index: 0 !important;
     animation: none !important;
     transition: none !important;
     pointer-events: none !important;
+  }
+  html.dms-preload-left [class*="_centerCol"] {
+    position: relative !important;
+    z-index: 1 !important;
+    background: var(--dms-bg) !important;
   }
   html.dms-left-hide [class*="_frame"] > [class*="_sidebarCol"] {
     transform: translateX(-100%) !important;
@@ -675,6 +692,10 @@ html[data-ds-dark-theme], body[data-ds-dark-theme], [data-ds-dark-theme] {
   html.dms-gesture-opened [class*="_frame"]:not([data-sidebar-collapsed]) > [class*="_sidebarCol"] { animation: none !important; }
 
   /* ---------- drawer drag (direct compositor transforms) ------------------ */
+  html.dms-dragging-left [class*="_centerCol"],
+  html.dms-dragging-right [class*="_centerCol"],
+  html.dms-drag-close-left [class*="_centerCol"],
+  html.dms-drag-close-right [class*="_centerCol"] { transition: none !important; }
   html.dms-dragging-left [class*="_frame"]:not([data-sidebar-collapsed]) > [class*="_sidebarCol"],
   html.dms-drag-close-left [class*="_frame"]:not([data-sidebar-collapsed]) > [class*="_sidebarCol"],
   html.dms-dragging-right [class*="_frame"] > [class*="_rightbarCol"],
