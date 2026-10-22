@@ -63,8 +63,11 @@ html[data-ds-dark-theme], body[data-ds-dark-theme], [data-ds-dark-theme] {
     border-right: none !important;
     border-radius: 0 !important;
     box-shadow: 10px 0 28px rgba(15, 23, 42, 0.18) !important;
-    animation: dms-drawer-in 0.24s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
-    transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+    /* The sidebar is preloaded and already painted under the page, so opening it
+       must not replay a slide-in animation (that was the source of the white
+       frame on fast drawer switches). Only the page push animates. */
+    animation: none !important;
+    transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
     box-sizing: border-box !important;
     padding-top: env(safe-area-inset-top, 0px) !important;
     padding-bottom: env(safe-area-inset-bottom, 0px) !important;
@@ -194,6 +197,45 @@ html[data-ds-dark-theme], body[data-ds-dark-theme], [data-ds-dark-theme] {
   }
   [class*="_rightbarCol"] [class*="_tabBody"] { width: 100% !important; }
 
+  /* The host panel chrome has two icon buttons (fullscreen toggle + collapse) in
+     the tab strip; the user asked to hide both (图4) and use our own fullscreen
+     control at the same corner instead. Selectors are stable data-* hooks, not
+     CSS-module hashes. */
+  [class*="_rightbarCol"] [data-sidebar-right-mode],
+  [class*="_rightbarCol"] [data-sidebar-right-toggle] { display: none !important; }
+
+  /* our own fullscreen toggle: same corner as the hidden host icons */
+  .dms-right-fullbtn {
+    position: fixed !important;
+    top: calc(6px + env(safe-area-inset-top, 0px)) !important;
+    right: 8px !important;
+    z-index: 96 !important;
+    display: none;
+    width: 38px !important; height: 38px !important; flex: 0 0 38px !important;
+    border-radius: 50% !important;
+    background: var(--dms-bg-soft) !important;
+    color: var(--dms-text) !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+  .dms-right-fullbtn svg { width: 19px !important; height: 19px !important; }
+  html.dms-right-open .dms-right-fullbtn,
+  html.dms-right-full .dms-right-fullbtn { display: inline-flex !important; }
+
+  /* fullscreen right panel: host state is data-sidebar-right-panel="fullscreen";
+     sync() mirrors it to html.dms-right-full. The drawer covers the page and the
+     edge gestures are disabled in JS while this class is present. */
+  html.dms-right-full [class*="_frame"] > [class*="_rightbarCol"] {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    z-index: 95 !important;
+    box-shadow: none !important;
+    transform: translateX(0) !important;
+  }
+  html.dms-right-full [class*="_centerCol"],
+  html.dms-right-full.dms-right-open [class*="_centerCol"] { transform: none !important; }
+  html.dms-right-full .dms-scrim { display: none !important; }
+
   /* ---------- scrim ------------------------------------------------------- */
   .dms-scrim {
     position: fixed; inset: 0; z-index: 80;
@@ -204,24 +246,24 @@ html[data-ds-dark-theme], body[data-ds-dark-theme], [data-ds-dark-theme] {
   html.dms-left-open .dms-scrim,
   html.dms-right-open .dms-scrim { opacity: 1; pointer-events: auto; }
 
-  /* official carousel: the page is pushed aside and fades while a drawer opens */
+  /* App-style push: the page moves with the drawer. This deliberately revisits
+     the "never push" rule in HANDOVER §14 — the blank strip seen then came from
+     the host sidebar not being mounted yet; with the P0 preload fix it is always
+     painted under the page, so pushing exposes the drawer, not a white gap.
+     Duration/easing match the drawer transition (0.24s) for a single motion. */
   html.dms-left-open [class*="_centerCol"] {
-    /* overlay instead of push: pushing the page off-screen exposed a blank
-       white strip while the host sidebar was still mounting (first open). */
-    transform: none !important;
+    transform: translate3d(min(326px, 80vw), 0, 0) !important;
     opacity: 1 !important;
-    transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+    transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
   }
   html.dms-right-open [class*="_centerCol"] {
-    /* overlay the right panel on the page instead of pushing it off-screen:
-       pushing left exposed a blank strip while the host panel mounted, which
-       read as a white flash. */
-    transform: none !important;
+    transform: translate3d(calc(-1 * min(326px, 80vw)), 0, 0) !important;
     opacity: 1 !important;
-    transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+    transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
   }
   html:not(.dms-left-open):not(.dms-right-open) [class*="_centerCol"] {
-    transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+    transform: none !important;
+    transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
   }
 
   /* ---------- top bar (host header, restyled) ----------------------------- */
@@ -296,6 +338,11 @@ html[data-ds-dark-theme], body[data-ds-dark-theme], [data-ds-dark-theme] {
   html.dms-hero-home [class*="_composerHero"] > [class*="_root"] {
     margin-top: auto !important; margin-bottom: auto !important;
   }
+  /* hero page with the attach sheet open: compact the logo/title so the page
+     behind the sheet keeps its greeter visible (用户 图6). */
+  html.dms-attach-open.dms-hero-home [class*="_centerCol"] [class*="_headline"] { gap: 4px !important; }
+  html.dms-attach-open.dms-hero-home [class*="_centerCol"] [class*="_fishHitbox"] svg { width: 46px !important; height: 34px !important; }
+  html.dms-attach-open.dms-hero-home [class*="_centerCol"] [class*="_titleGroup"] > span:first-child { font-size: 17px !important; }
 
   /* conversation messages align with the composer card width */
   [class*="_centerCol"] [class*="_scroll"]:has(> [class*="_column"]) {
@@ -669,6 +716,18 @@ html[data-ds-dark-theme], body[data-ds-dark-theme], [data-ds-dark-theme] {
     transform: translateX(100%) !important;
     will-change: transform !important;
   }
+  /* The preload rules keep the host sidebar under the page; while the drawer is
+     open it must come back above the pushed page. Overriding the combined state
+     (instead of removing dms-preload-left on open) avoids a class churn that
+     re-ran the host animation and flashed white on fast drawer switches. */
+  html.dms-preload-left.dms-left-open [class*="_frame"] > [class*="_sidebarCol"],
+  html.dms-left-open [class*="_frame"]:not([data-sidebar-collapsed]) > [class*="_sidebarCol"] {
+    z-index: 90 !important;
+    pointer-events: auto !important;
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
 
   /* ---------- toast ------------------------------------------------------- */
   .dms-toast {
@@ -716,22 +775,26 @@ html[data-ds-dark-theme], body[data-ds-dark-theme], [data-ds-dark-theme] {
   /* ---------- composer attach sheet --------------------------------------- */
   .dms-attach-backdrop {
     display: block;
-    position: fixed; inset: 0; z-index: 2147482600;
+    position: fixed; inset: 0; z-index: 1040;
     background: transparent;
     opacity: 0; pointer-events: none;
     transition: opacity 0.2s ease-out;
   }
-  html.dms-attach-open .dms-attach-backdrop { opacity: 1; pointer-events: auto; }
+  html.dms-attach-open .dms-attach-backdrop { opacity: 1; }
   .dms-attach-sheet {
     display: flex;
-    position: fixed; left: 0; right: 0; bottom: 0; z-index: 2147482601;
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 1049;
     transform: translateY(105%); opacity: 1; pointer-events: none;
     transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
     background: var(--dms-bg);
     border-radius: 18px 18px 0 0;
-    padding: 8px 14px calc(14px + env(safe-area-inset-bottom, 0px));
-    box-shadow: 0 -10px 34px rgba(15, 23, 42, 0.18);
-    flex-direction: column; gap: 12px;
+    padding: 6px 14px calc(12px + env(safe-area-inset-bottom, 0px));
+    /* No upward shadow: on white it renders as the dark line above the sheet
+       that the user flagged (图1). Host menus (z-index 1100) must stay above. */
+    box-shadow: none;
+    border: 0;
+    flex-direction: column; gap: 10px;
+    max-height: 50vh;
   }
   html.dms-attach-open .dms-attach-sheet { transform: translateY(0); pointer-events: auto; }
   .dms-attach-handle {
@@ -743,13 +806,14 @@ html[data-ds-dark-theme], body[data-ds-dark-theme], [data-ds-dark-theme] {
   .dms-attach-recent-title { font-size: 12px; color: var(--dms-text-2); padding: 0 2px; }
   .dms-attach-recent-strip {
     display: flex; gap: 8px; overflow-x: auto; overflow-y: hidden;
-    padding: 2px 2px 4px; min-height: 72px; scrollbar-width: none;
+    padding: 2px 2px 4px; min-height: 64px; scrollbar-width: none;
+    scroll-behavior: auto;
   }
   .dms-attach-recent-strip::-webkit-scrollbar { display: none; }
   .dms-attach-loading { font-size: 12px; color: var(--dms-text-2); align-self: center; }
   .dms-attach-photo {
     position: relative;
-    flex: 0 0 72px; width: 72px; height: 72px; padding: 0;
+    flex: 0 0 64px; width: 64px; height: 64px; padding: 0;
     border: 0; border-radius: 10px; overflow: hidden; background: var(--dms-surface-2);
   }
   .dms-photo-check {
@@ -769,24 +833,24 @@ html[data-ds-dark-theme], body[data-ds-dark-theme], [data-ds-dark-theme] {
   }
   [class*="_remove"] svg { width: 10px !important; height: 10px !important; }
   .dms-attach-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
-  .dms-attach-actions { display: flex; gap: 10px; }
+  .dms-attach-actions { display: flex; gap: 8px; }
   .dms-attach-action {
     flex: 1 1 0; min-width: 0;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px;
-    height: 86px; border: 0; border-radius: 14px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+    height: 72px; border: 0; border-radius: 14px;
     background: var(--dms-surface-2); color: var(--dms-text);
     font-size: 13px; font-weight: 500;
   }
   .dms-attach-action:active { background: var(--dms-line); }
   .dms-attach-ico { display: inline-flex; color: var(--dms-text); }
-  .dms-attach-ico svg { width: 24px; height: 24px; }
+  .dms-attach-ico svg { width: 22px; height: 22px; }
 
-  /* the host "+" turns into an X while the sheet is open */
-  html.dms-attach-open button[data-dms-plus="1"] svg { display: none !important; }
-  html.dms-attach-open button[data-dms-plus="1"]::before {
-    content: "×"; font-size: 26px; line-height: 1; font-weight: 400; color: var(--dms-text);
-    display: flex; align-items: center; justify-content: center;
+  /* the host "+" rotates into an "x" in step with the sheet (same 0.24s curve) */
+  button[data-dms-plus="1"] svg {
+    transform: rotate(0deg) !important;
+    transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
   }
+  html.dms-attach-open button[data-dms-plus="1"] svg { transform: rotate(45deg) !important; }
 
   /* keyboard-inset fallback (only when the host did not resize the layout) */
   html.dms-kb-open [data-composer-seat] {
@@ -795,8 +859,13 @@ html[data-ds-dark-theme], body[data-ds-dark-theme], [data-ds-dark-theme] {
   }
   html.dms-attach-open [data-composer-seat] {
     transform: translateY(calc(-1 * var(--dms-sheet-h, 0px))) !important;
-    transition: transform 0.18s ease-out !important;
+    transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
   }
+  /* The composer's shield/context popovers live inside centerCol and use host
+     layer z-index 1100. While the sheet is open drop centerCol's own stacking
+     context so those popovers can paint above the sheet instead of being
+     clipped behind it (下方界面不消失、按钮 GUI 可见). */
+  html.dms-attach-open [class*="_centerCol"] { z-index: auto !important; }
   @keyframes dms-drawer-in {
     from { transform: translateX(-100%); }
     to { transform: translateX(0); }

@@ -30,7 +30,7 @@ window.__ModuleLoader__.load({
     const MEDIA = "(max-width: 1023px)";
     const EDGE = 26;
     const TRIGGER = 56;
-    const LOCK = 1;
+    const LOCK = 6;
 
     const ICONS = {
       menu: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>',
@@ -38,6 +38,8 @@ window.__ModuleLoader__.load({
       panel: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><path d="M14.5 4.5v15"/></svg>',
       camera: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M4 8.5h3l1.4-2h7.2L17 8.5h3A1.5 1.5 0 0 1 21.5 10v7.5A1.5 1.5 0 0 1 20 19H4a1.5 1.5 0 0 1-1.5-1.5V10A1.5 1.5 0 0 1 4 8.5Z"/><circle cx="12" cy="13.7" r="3.3"/></svg>',
       image: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2.5"/><circle cx="8.2" cy="9.2" r="1.6"/><path d="m4.8 17 4.4-4.3 3 2.8 2.6-2.3 4.4 3.8"/></svg>',
+      full: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V5.8A1.8 1.8 0 0 1 5.8 4H9M15 4h3.2A1.8 1.8 0 0 1 20 5.8V9M20 15v3.2a1.8 1.8 0 0 1-1.8 1.8H15M9 20H5.8A1.8 1.8 0 0 1 4 18.2V15"/></svg>',
+      exitFull: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4v3.2A1.8 1.8 0 0 1 7.2 9H4M15 4v3.2A1.8 1.8 0 0 0 16.8 9H20M9 20v-3.2A1.8 1.8 0 0 0 7.2 15H4M15 20v-3.2a1.8 1.8 0 0 1 1.8-1.8H20"/></svg>',
       file: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M6 3.5h7l5 5v12H6z"/><path d="M13 3.5v5h5"/></svg>',
       check: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4.5 4.5L19 7"/></svg>'
     };
@@ -51,6 +53,7 @@ window.__ModuleLoader__.load({
     const settingsPanel = () => $('[data-shortcut-modal="settings"]');
     const hostLeftOpen = () => { const f = frame(); return f !== null && !f.hasAttribute("data-sidebar-collapsed"); };
     let leftVisible = false;
+    let rightVisible = false;
     let sidebarExpandBusy = false;
     let sidebarExpandTimer = 0;
     let rightActivityAt = 0;
@@ -116,12 +119,6 @@ window.__ModuleLoader__.load({
     function ensureSidebarMounted() {
       if (!isPhone() || hostLeftOpen() || sidebarExpandBusy) return;
       if (rightOpen() || document.documentElement.classList.contains("dms-right-open")) return;
-      if (performance.now() - rightActivityAt < 450) {
-        if (sidebarExpandTimer === 0) {
-          sidebarExpandTimer = setTimeout(() => { sidebarExpandTimer = 0; ensureSidebarMounted(); }, 480);
-        }
-        return;
-      }
       sidebarExpandBusy = true;
       document.documentElement.classList.add("dms-preload-left");
       const layout = ctxRef && ctxRef.layout;
@@ -135,7 +132,7 @@ window.__ModuleLoader__.load({
     }
     let lastMountAttempt = 0;
     function forceMountSidebar() {
-      if (!isPhone() || leftVisible || rightVisible) return;
+      if (!isPhone() || leftVisible || rightVisible || rightOpen()) return;
       const root = document.documentElement;
       root.classList.add("dms-preload-left");
       const f = frame();
@@ -156,7 +153,6 @@ window.__ModuleLoader__.load({
     function preloadSidebar() {
       if (!isPhone() || leftVisible || rightOpen() || settingsPanel() !== null) return;
       if (hostLeftOpen() || sidebarExpandBusy) return;
-      if (performance.now() - rightActivityAt < 450) return;
       const root = document.documentElement;
       root.classList.add("dms-preload-left");
       ensureSidebarMounted();
@@ -168,24 +164,48 @@ window.__ModuleLoader__.load({
       const root = document.documentElement;
       root.classList.remove("dms-left-hide");
       if (!hostLeftOpen()) {
-        if (!rightOpen() && !root.classList.contains("dms-right-open") && performance.now() - rightActivityAt > 450) {
+        if (!rightOpen() && !root.classList.contains("dms-right-open")) {
           sidebarExpandBusy = false;
           ensureSidebarMounted();
         }
       } else {
-        root.classList.remove("dms-preload-left");
+        // Keep the preload pin in place while the drawer is open: the combined
+        // html.dms-preload-left.dms-left-open CSS already lifts it above the page,
+        // and not toggling the class avoids a repaint/white flash on fast switches.
+        root.classList.add("dms-preload-left");
       }
       leftRepairTimer = setTimeout(repairLeftHost, 350);
+    }
+    // openLeftVisual()/gesture frames write !important inline overrides onto the
+    // host sidebar and center column. A closed drawer must not keep them: the
+    // inline z-index:90 would beat html.dms-preload-left (z-index:0) and leave
+    // the already-expanded host sidebar covering the page. The CSS slide-out
+    // also needs the inline transition/transform gone to be able to animate.
+    function clearDrawerInline() {
+      const col = sidebarCol();
+      if (col !== null) {
+        col.style.removeProperty("animation");
+        col.style.removeProperty("transition");
+        col.style.removeProperty("transform");
+        col.style.removeProperty("z-index");
+        col.style.removeProperty("will-change");
+      }
+      const center = $('[class*="_centerCol"]');
+      if (center !== null) {
+        center.style.removeProperty("transform");
+        center.style.removeProperty("opacity");
+        center.style.removeProperty("transition");
+        center.style.removeProperty("will-change");
+      }
     }
     function openLeftVisual() {
       leftVisible = true;
       const root = document.documentElement;
-      const center = $('[class*="_centerCol"]');
-      if (center !== null) {
-        center.style.setProperty("transform", "none", "important");
-        center.style.setProperty("opacity", "1", "important");
-      }
-      root.classList.remove("dms-preload-left", "dms-left-hide");
+      // Keep dms-preload-left: the host sidebar stays mounted and painted under
+      // the page (P0 fix), so opening only needs to raise it above the page and
+      // let the CSS push move centerCol. Removing preload here re-ran the host
+      // slide-in animation and could show a white frame on fast drawer switches.
+      root.classList.remove("dms-left-hide");
       root.classList.add("dms-left-open");
       const col = sidebarCol();
       if (col !== null) {
@@ -200,6 +220,9 @@ window.__ModuleLoader__.load({
       if (!leftVisible) return;
       leftVisible = false;
       if (leftRepairTimer !== 0) { clearTimeout(leftRepairTimer); leftRepairTimer = 0; }
+      // Drop the inline overrides first so the CSS close transition/class can win
+      // and the preloaded sidebar falls back under the page.
+      clearDrawerInline();
       const root = document.documentElement;
       root.classList.remove("dms-left-open");
       if (animated) {
@@ -219,16 +242,57 @@ window.__ModuleLoader__.load({
       else openLeftVisual();
     }
     function openRight() {
+      rightVisible = true;
       rightActivityAt = performance.now();
       document.documentElement.classList.add("dms-right-open");
       const btn = rightExpand();
       if (btn) btn.click();
     }
     function closeRight() {
+      // Keep the host's own fullscreen mode in sync: leaving it here avoids the
+      // next open unexpectedly restoring a 100vw panel (the host chrome that
+      // would show this state is hidden in the drawer).
+      if (rightFullscreen() && performance.now() - rightFullExitAt > 700) exitRightFullscreen(false);
+      rightVisible = false;
       rightActivityAt = performance.now();
       document.documentElement.classList.remove("dms-right-open");
       const btn = rightToggle();
       if (btn) btn.click();
+    }
+    let rightFullExitAt = 0;
+    let rightFullBtn = null;
+    const rightFullscreen = () => $('[data-sidebar-right-panel="fullscreen"]') !== null;
+    function exitRightFullscreen(closeDrawer) {
+      // The host owns fullscreen layout; its panel-chrome button is hidden by CSS
+      // but can still be dispatched, so we flip the host state instead of writing
+      // layout state ourselves (single source of truth for back key and button).
+      rightFullExitAt = performance.now();
+      const modeBtn = $("[data-sidebar-right-mode]");
+      if (modeBtn !== null) modeBtn.click();
+      document.documentElement.classList.remove("dms-right-full");
+      if (closeDrawer === true) closeRight();
+    }
+    function ensureRightFullButton() {
+      if (rightFullBtn === null) {
+        rightFullBtn = document.createElement("button");
+        rightFullBtn.type = "button";
+        rightFullBtn.className = "dms-iconbtn dms-right-fullbtn";
+        rightFullBtn.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          if (document.documentElement.classList.contains("dms-right-full")) exitRightFullscreen(false);
+          else {
+            const modeBtn = $("[data-sidebar-right-mode]");
+            if (modeBtn !== null) modeBtn.click();
+          }
+        });
+        document.body.appendChild(rightFullBtn);
+      }
+      const root = document.documentElement;
+      const full = root.classList.contains("dms-right-full");
+      rightFullBtn.style.display = "";
+      rightFullBtn.innerHTML = full ? ICONS.exitFull : ICONS.full;
+      rightFullBtn.setAttribute("aria-label", full ? "退出全屏" : "全屏");
     }
     function newSession() {
       const btn = $('[class*="_newSession"]');
@@ -367,6 +431,7 @@ window.__ModuleLoader__.load({
       const previous = window.__dshmBack;
       window.__dshmBack = function dshMobileShellBack() {
         if (settingsPanel() !== null) { if (settingsBack()) return true; }
+        if (document.documentElement.classList.contains("dms-right-full")) { exitRightFullscreen(true); return true; }
         if (rightOpen()) { closeRight(); return true; }
         if (leftOpen()) { toggleLeft(); return true; }
         const layout = ctxRef && ctxRef.layout;
@@ -426,11 +491,12 @@ window.__ModuleLoader__.load({
         }
         if (centerEl === null) centerEl = $('[class*="_centerCol"]');
         if (centerEl !== null) {
-          // Drawers overlay the page; never translate/fade the page itself.
-          // Pushing it exposed a blank strip while the host sidebar was still
-          // mounting, which reads as a white flash on the first open.
+          // Push the page in step with the drawer. HANDOVER §14 recorded a white
+          // strip from pushing, but that was before the host sidebar was preloaded
+          // (P0 fix): it is now painted under the page, so no blank area is exposed.
+          const pageX = side === "left" ? Math.max(0, Math.min(W, W + x)) : Math.min(0, Math.max(-W, x - W));
           centerEl.style.setProperty("transition", "none", "important");
-          centerEl.style.setProperty("transform", "none", "important");
+          centerEl.style.setProperty("transform", pageX === 0 ? "none" : "translate3d(" + Math.round(pageX) + "px,0,0)", "important");
           centerEl.style.setProperty("opacity", "1", "important");
         }
         drawerX = x;
@@ -443,6 +509,7 @@ window.__ModuleLoader__.load({
           activeEl.style.removeProperty("transition");
           activeEl.style.removeProperty("animation");
           activeEl.style.removeProperty("will-change");
+          activeEl.style.removeProperty("z-index");
         }
         if (centerEl !== null) {
           centerEl.style.removeProperty("transform");
@@ -451,6 +518,15 @@ window.__ModuleLoader__.load({
           centerEl.style.removeProperty("will-change");
         }
         activeEl = null;
+      };
+      const inHorizontalScroller = (node) => {
+        let el = node instanceof Element ? node : null;
+        for (let depth = 0; el !== null && el !== document.body && depth < 8; depth++) {
+          const style = window.getComputedStyle(el);
+          if ((style.overflowX === "auto" || style.overflowX === "scroll") && el.scrollWidth > el.clientWidth + 2) return true;
+          el = el.parentElement;
+        }
+        return false;
       };
       const springTo = (side, targetX, willClose, done) => {
         if (springRaf !== 0) cancelAnimationFrame(springRaf);
@@ -499,18 +575,23 @@ window.__ModuleLoader__.load({
         lastFrameT = 0;
         mode = null; locked = false; velocity = 0;
         if (settingsPanel() !== null) return;
-        if ($('[data-composer-card]') === null && !leftOpen() && !rightOpen()) return;
+        if (root.classList.contains("dms-attach-open") || root.classList.contains("dms-right-full")) return;
+        if ($('[data-composer-card]') === null && !leftOpen() && !rightVisible) return;
         const t = e.touches[0];
         startX = t.clientX; startY = t.clientY; lastX = startX; lastT = performance.now();
         samples = [{ x: startX, t: lastT }];
         width = window.innerWidth;
         const target = e.target instanceof Element ? e.target : document.elementFromPoint(t.clientX, t.clientY);
+        // Plugin state, not the host's transient marker: the host can still report
+        // data-sidebar-right-open for a frame after closeRight(), which used to
+        // turn the next left-swipe into a no-op "close right" gesture.
         if (leftOpen()) {
           mode = "close-left";
-        } else if (rightOpen()) {
+        } else if (rightVisible) {
           mode = "close-right";
         } else {
-          if (target && target.closest('[contenteditable], input, textarea, [role="textbox"], [role="dialog"]')) return;
+          if (target && target.closest('[contenteditable], input, textarea, [role="textbox"], [role="dialog"], [data-composer-card] button')) return;
+          if (target && inHorizontalScroller(target)) return;
           mode = "pending";
         }
       }, { passive: true, capture: true });
@@ -527,8 +608,9 @@ window.__ModuleLoader__.load({
         samples.push({ x: t.clientX, t: now });
         while (samples.length > 2 && now - samples[0].t > 110) samples.shift();
         if (!locked) {
-          if (Math.abs(dy) > 12 && Math.abs(dy) >= Math.abs(dx)) { mode = null; return; }
+          if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) { mode = null; return; }
           if (Math.abs(dx) <= LOCK) return;
+          if (mode === "pending" && Math.abs(dx) <= Math.abs(dy) * 1.1) return;
           if (mode === "pending") {
             mode = dx > 0 ? "open-left" : "open-right";
             root.classList.add(dragClassFor(mode));
@@ -536,9 +618,11 @@ window.__ModuleLoader__.load({
             if (openSide === "left") {
               root.classList.add("dms-gesture-arming");
               openLeftVisual();
+              applyFrame("left", -drawerWidth());
             } else {
               root.classList.add("dms-gesture-arming-right");
               if (!rightOpen()) openRight();
+              applyFrame("right", drawerWidth());
             }
             let armTries = 0;
             const armPaint = () => {
@@ -587,7 +671,7 @@ window.__ModuleLoader__.load({
         const m = mode;
         const side = m === "open-left" || m === "close-left" ? "left" : "right";
         const W = drawerWidth();
-        const threshold = W * 0.5;
+        const threshold = W * 0.38;
         const endT = performance.now();
         const recent = samples.filter((s) => endT - s.t <= 110);
         let stableVelocity = 0;
@@ -596,19 +680,19 @@ window.__ModuleLoader__.load({
           const last = recent[recent.length - 1];
           if (last.t - first.t >= 8) stableVelocity = (last.x - first.x) / (last.t - first.t);
         }
-        const fast = Math.abs(stableVelocity) > 0.125 && Math.abs(dx) >= 36;
+        const fast = Math.abs(stableVelocity) > 0.08 && Math.abs(dx) >= 20;
         mode = null; locked = false;
         if (m === "open-left") {
           if (dx >= threshold || (fast && stableVelocity > 0)) { root.classList.add("dms-left-open", "dms-gesture-opened"); springTo("left", 0, false); }
           else springTo("left", -W, true, () => closeLeftVisual(false));
         } else if (m === "open-right") {
           if (-dx >= threshold || (fast && stableVelocity < 0)) { root.classList.add("dms-right-open"); springTo("right", 0, false); }
-          else springTo("right", W, true, () => { if (rightOpen()) closeRight(); });
+          else springTo("right", W, true, () => closeRight());
         } else if (m === "close-left") {
           if (-dx >= threshold || (fast && stableVelocity < 0)) springTo("left", -W, true, () => closeLeftVisual(false));
           else { root.classList.add("dms-left-open"); springTo("left", 0, false); }
         } else if (m === "close-right") {
-          if (dx >= threshold || (fast && stableVelocity > 0)) springTo("right", W, true, () => { if (rightOpen()) closeRight(); });
+          if (dx >= threshold || (fast && stableVelocity > 0)) springTo("right", W, true, () => closeRight());
           else { root.classList.add("dms-right-open"); springTo("right", 0, false); }
         } else {
           gestureBusy = false;
@@ -703,7 +787,15 @@ window.__ModuleLoader__.load({
       maybeRestoreWorkspace();
       const root = document.documentElement;
       root.classList.toggle("dms-left-open", leftOpen());
-      root.classList.toggle("dms-right-open", rightOpen());
+      // The host can keep data-sidebar-right-open for a frame after closeRight();
+      // don't let the 400ms reconciler flash the right drawer back open right
+      // after a close (it would also block an immediate left-swipe).
+      const rightClosing = !rightVisible && performance.now() - rightActivityAt < 320;
+      root.classList.toggle("dms-right-open", rightVisible || (rightOpen() && !rightClosing));
+      // Minimal drift correction: if the host closed the right panel on its own
+      // (e.g. its own close button), drop our stale plugin state after the
+      // open/close grace window so the left preload path is not blocked.
+      if (rightVisible && !rightOpen() && performance.now() - rightActivityAt > 600) rightVisible = false;
       const panel = settingsPanel();
       root.classList.toggle("dms-settings-open", panel !== null);
       if (panel !== null) ensureSettings(panel);
@@ -724,6 +816,12 @@ window.__ModuleLoader__.load({
       for (const extra of $$('[class*="_statusLine"], [class*="_sessionStats"]')) normalizeSeparators(extra);
       const hero = $('[class*="_composerHero"]');
       root.classList.toggle("dms-hero-home", hero !== null && panel === null);
+      // Fullscreen is host-owned ([data-sidebar-right-panel]); mirror it to a class
+      // so the mobile CSS can expand the drawer and the back key can exit it.
+      const full = isPhone() && rightOpen() && $('[data-sidebar-right-panel="fullscreen"]') !== null;
+      root.classList.toggle("dms-right-full", full);
+      if (isPhone()) ensureRightFullButton();
+      else if (rightFullBtn !== null) rightFullBtn.style.display = "none";
       if (isPhone() && !leftVisible && !rightVisible) forceMountSidebar();
     }
 
@@ -757,6 +855,10 @@ window.__ModuleLoader__.load({
       let nativeCaps = null;
       let nativeCapsPromise = null;
       const nativePending = new Map();
+      let photoDrag = null;
+      let photoDragPoint = null;
+      let photoAutoScrollRaf = 0;
+      let suppressPhotoClick = false;
 
       const nativeBridge = () => {
         const api = window.DSHNative;
@@ -790,7 +892,7 @@ window.__ModuleLoader__.load({
         if (backdrop === null) {
           backdrop = document.createElement("div");
           backdrop.className = "dms-attach-backdrop";
-          backdrop.addEventListener("click", () => closeSheet());
+          backdrop.setAttribute("aria-hidden", "true");
           document.body.appendChild(backdrop);
         }
         if (sheet === null) {
@@ -809,6 +911,36 @@ window.__ModuleLoader__.load({
           document.body.appendChild(sheet);
           recentWrap = sheet.querySelector(".dms-attach-recent");
           recentStrip = sheet.querySelector(".dms-attach-recent-strip");
+          recentStrip.addEventListener("touchstart", (event) => {
+            const cell = event.target instanceof Element ? event.target.closest(".dms-attach-photo") : null;
+            if (cell === null) return;
+            const t = event.touches[0];
+            suppressPhotoClick = false;
+            photoDrag = { mode: cell.classList.contains("selected") ? "deselect" : "select", last: null };
+            photoDragPoint = { x: t.clientX, y: t.clientY };
+            photoDragTo(cell);
+            startPhotoAutoScroll();
+            if (event.cancelable) event.preventDefault();
+          }, { passive: false });
+          recentStrip.addEventListener("touchmove", (event) => {
+            if (photoDrag === null) return;
+            const t = event.touches[0];
+            photoDragPoint = { x: t.clientX, y: t.clientY };
+            photoDragTo(photoCellAtPoint(t.clientX, t.clientY));
+            startPhotoAutoScroll();
+            if (event.cancelable) event.preventDefault();
+          }, { passive: false });
+          const endPhotoDrag = () => {
+            if (photoDrag !== null) {
+              suppressPhotoClick = true;
+              setTimeout(() => { suppressPhotoClick = false; }, 400);
+            }
+            photoDrag = null;
+            photoDragPoint = null;
+            stopPhotoAutoScroll();
+          };
+          recentStrip.addEventListener("touchend", endPhotoDrag, { passive: true });
+          recentStrip.addEventListener("touchcancel", endPhotoDrag, { passive: true });
           sheet.addEventListener("click", (event) => {
             const action = event.target instanceof Element ? event.target.closest("[data-kind]") : null;
             if (action !== null) {
@@ -920,6 +1052,68 @@ window.__ModuleLoader__.load({
         if (!delivered) showToast("这块输入框暂不支持添加附件");
       }
 
+      function composerRemoveByName(name) {
+        if (!name) return false;
+        const card = $('[data-composer-card]') || $('[data-composer-seat]') || $('[class*="_inputBar"]');
+        if (card === null) return false;
+        const matches = $$('[class*="_remove"]', card).filter((btn) => (btn.getAttribute("aria-label") || "").indexOf(name) >= 0);
+        // Only remove when exactly one composer chip can be identified by file name;
+        // otherwise keep the chip (removing the wrong attachment is worse).
+        if (matches.length !== 1) return false;
+        matches[0].click();
+        return true;
+      }
+      function selectPhoto(cell) {
+        if (cell.classList.contains("selected") || cell.dataset.dmsPending === "1") return;
+        cell.dataset.dmsPending = "1";
+        cell.classList.add("selected");
+        void openRecent(cell.getAttribute("data-photo-id"), cell);
+      }
+      function deselectPhoto(cell) {
+        if (!cell.classList.contains("selected")) return;
+        cell.classList.remove("selected");
+        composerRemoveByName(cell.dataset.dmsName || "");
+      }
+      function togglePhoto(cell) {
+        if (cell.classList.contains("selected")) deselectPhoto(cell);
+        else selectPhoto(cell);
+      }
+      function photoCellAtPoint(x, y) {
+        if (recentStrip === null) return null;
+        const rect = recentStrip.getBoundingClientRect();
+        const cx = Math.min(Math.max(x, rect.left + 4), rect.right - 4);
+        const cy = Math.min(Math.max(y, rect.top + 4), rect.bottom - 4);
+        const el = document.elementFromPoint(cx, cy);
+        return el instanceof Element ? el.closest(".dms-attach-photo") : null;
+      }
+      function photoDragTo(cell) {
+        if (photoDrag === null || cell === null || cell === photoDrag.last) return;
+        photoDrag.last = cell;
+        if (photoDrag.mode === "select") selectPhoto(cell);
+        else deselectPhoto(cell);
+      }
+      function stopPhotoAutoScroll() {
+        if (photoAutoScrollRaf !== 0) { cancelAnimationFrame(photoAutoScrollRaf); photoAutoScrollRaf = 0; }
+      }
+      function startPhotoAutoScroll() {
+        stopPhotoAutoScroll();
+        if (photoDrag === null || photoDragPoint === null || recentStrip === null) return;
+        const step = () => {
+          photoAutoScrollRaf = 0;
+          if (photoDrag === null || photoDragPoint === null || recentStrip === null) return;
+          const rect = recentStrip.getBoundingClientRect();
+          const edge = 44;
+          let delta = 0;
+          if (photoDragPoint.x < rect.left + edge) delta = -Math.max(5, (rect.left + edge - photoDragPoint.x) * 0.6);
+          else if (photoDragPoint.x > rect.right - edge) delta = Math.max(5, (photoDragPoint.x - (rect.right - edge)) * 0.6);
+          if (delta !== 0) {
+            recentStrip.scrollLeft += delta;
+            photoDragTo(photoCellAtPoint(photoDragPoint.x, photoDragPoint.y));
+            photoAutoScrollRaf = requestAnimationFrame(step);
+          }
+        };
+        photoAutoScrollRaf = requestAnimationFrame(step);
+      }
       async function renderRecent() {
         if (recentWrap === null || recentStrip === null) return;
         const api = nativeBridge();
@@ -945,30 +1139,42 @@ window.__ModuleLoader__.load({
             check.className = "dms-photo-check";
             check.innerHTML = ICONS.check;
             cell.appendChild(check);
+            cell.setAttribute("data-photo-id", photo.id === undefined || photo.id === null ? "" : String(photo.id));
             cell.addEventListener("click", () => {
-              if (cell.classList.contains("selected")) return;
-              cell.classList.add("selected");
-              void openRecent(photo.id);
+              if (suppressPhotoClick) { suppressPhotoClick = false; return; }
+              togglePhoto(cell);
             });
             recentStrip.appendChild(cell);
           }
           if (recentStrip.childElementCount === 0) recentWrap.hidden = true;
+          requestAnimationFrame(measureSheet);
         } catch (error) {
           recentWrap.hidden = true;
+          requestAnimationFrame(measureSheet);
         }
       }
 
-      async function openRecent(id) {
+      async function openRecent(id, cell) {
         if (id === undefined || id === null) return;
         try {
           const reply = await nativeCall("openRecent", { id }, 3000);
           if (!reply || typeof reply.url !== "string") throw new Error("missing url");
+          if (cell !== undefined && cell !== null && !cell.classList.contains("selected")) return;
           const response = await fetch(reply.url);
           if (!response.ok) throw new Error("fetch failed");
           const blob = await response.blob();
           const file = new File([blob], reply.name || "photo.jpg", { type: reply.mime || blob.type || "image/jpeg" });
+          if (cell !== undefined && cell !== null) {
+            cell.dataset.dmsPending = "0";
+            cell.dataset.dmsName = file.name;
+          }
           intake([file]);
+          requestAnimationFrame(measureSheet);
         } catch (error) {
+          if (cell !== undefined && cell !== null) {
+            cell.classList.remove("selected");
+            cell.dataset.dmsPending = "0";
+          }
           showToast("读取照片失败，请重试");
         }
       }
@@ -990,6 +1196,9 @@ window.__ModuleLoader__.load({
         renderRecent();
       }
       function closeSheet() {
+        photoDrag = null;
+        photoDragPoint = null;
+        stopPhotoAutoScroll();
         root.classList.remove("dms-attach-open");
         root.style.setProperty("--dms-sheet-h", "0px");
       }
@@ -1015,7 +1224,13 @@ window.__ModuleLoader__.load({
       document.addEventListener("click", (event) => {
         if (!root.classList.contains("dms-attach-open")) return;
         const target = event.target instanceof Element ? event.target : null;
-        if (target !== null && (target.closest(".dms-attach-sheet") !== null || target.closest('button[aria-haspopup="listbox"]') !== null)) return;
+        if (target === null) return;
+        if (target.closest(".dms-attach-sheet") !== null) return;
+        // Keep the sheet alive for the composer's own controls (shield / context /
+        // workspace / mode pickers). Their popovers render on host layer 1100,
+        // above this sheet (z-index 1049), so the controls and their menus work
+        // and the UI below the sheet is not torn down.
+        if (target.closest('[data-composer-card], [data-composer-seat], [class*="_inputBar"]') !== null) return;
         closeSheet();
       }, true);
 
