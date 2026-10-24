@@ -60,8 +60,23 @@ window.__ModuleLoader__.load({
     let leftRepairTimer = 0;
     const leftOpen = () => leftVisible;
     const rightOpen = () => $("[data-sidebar-right-open]") !== null;
-    const rightToggle = () => $("[data-sidebar-right-toggle]");
-    const rightExpand = () => $("[data-sidebar-right-expand]");
+    const hostRightOpen = () => $("[data-sidebar-right-session]:not([hidden]) [data-sidebar-right-open]") !== null;
+    let rightPreloadClick = false;
+    let rightPreloadState = "idle";
+    let rightPreloadAttempts = new Set();
+    let rightFallbackOpen = false;
+    let rightLoadingEl = null;
+    let rightOpenWaitTimer = 0;
+    let rightWaitFallbackTried = false;
+    let rightViewTabsInjected = false;
+    let rightViewMenuObserver = null;
+    let rightViewMenuRaf = 0;
+    let rightViewTabsFallback = false;
+    let lastRightPreloadAt = 0;
+    let closeAttachForSession = null;
+    let sessionKeyPrev = "";
+    let lastPointerInEditor = false;
+    let lastPointerAt = 0;
 
     let ctxRef = null;
     let gestureBusy = false;
@@ -87,7 +102,7 @@ window.__ModuleLoader__.load({
         el.className = "dms-scrim";
         el.setAttribute("aria-hidden", "true");
         el.addEventListener("click", () => {
-          if (rightOpen()) closeRight();
+          if (rightVisible) closeRight();
           else if (leftOpen()) toggleLeft();
         });
         document.body.appendChild(el);
@@ -101,7 +116,8 @@ window.__ModuleLoader__.load({
       return svg === null ? "" : svg.outerHTML;
     }
     function iconFor(kind) {
-      if (kind === "menu") return cloneIcon("[data-sidebar-right-expand]") || ICONS.menu;
+      // 任务29：左上角永远用我们的「三」汉堡图标，不克隆宿主 expand/panel 的方框图标
+      if (kind === "menu") return ICONS.menu;
       if (kind === "plus") return cloneIcon('[class*="_sidebarCol"] [class*="_newSession"]') || ICONS.plus;
       if (kind === "panel") return cloneIcon("[data-sidebar-right-expand]") || ICONS.panel;
       return "";
@@ -118,7 +134,7 @@ window.__ModuleLoader__.load({
 
     function ensureSidebarMounted() {
       if (!isPhone() || hostLeftOpen() || sidebarExpandBusy) return;
-      if (rightOpen() || document.documentElement.classList.contains("dms-right-open")) return;
+      if (rightVisible || document.documentElement.classList.contains("dms-right-open")) return;
       sidebarExpandBusy = true;
       document.documentElement.classList.add("dms-preload-left");
       const layout = ctxRef && ctxRef.layout;
@@ -132,7 +148,7 @@ window.__ModuleLoader__.load({
     }
     let lastMountAttempt = 0;
     function forceMountSidebar() {
-      if (!isPhone() || leftVisible || rightVisible || rightOpen()) return;
+      if (!isPhone() || leftVisible || rightVisible) return;
       const root = document.documentElement;
       root.classList.add("dms-preload-left");
       const f = frame();
@@ -151,20 +167,151 @@ window.__ModuleLoader__.load({
     }
 
     function preloadSidebar() {
-      if (!isPhone() || leftVisible || rightOpen() || settingsPanel() !== null) return;
+      if (!isPhone() || leftVisible || rightVisible || settingsPanel() !== null) return;
       if (hostLeftOpen() || sidebarExpandBusy) return;
       const root = document.documentElement;
       root.classList.add("dms-preload-left");
       ensureSidebarMounted();
     }
 
+    function rightPanelEl() {
+      return $("[data-sidebar-right-session]:not([hidden])") || $("[data-sidebar-right-session]");
+    }
+    function rightSessionId() {
+      const panel = rightPanelEl();
+      return panel === null ? "" : (panel.getAttribute("data-sidebar-right-session") || "");
+    }
+    function rightPanelHasTab() {
+      const panel = rightPanelEl();
+      return panel !== null && panel.querySelector("[data-dockkit-tab], [data-sidebar-right-tab]") !== null;
+    }
+    function rightTabBodyEl() {
+      const panel = rightPanelEl();
+      return panel === null ? null : panel.querySelector('[class*="_tabBody"], [data-dockkit-tab-body]');
+    }
+    function rightPanelContentReady() {
+      const panel = rightPanelEl();
+      if (panel === null) return false;
+      if (panel.querySelector("[data-dockkit-tab], [data-sidebar-right-tab]") === null) return false;
+      const body = rightTabBodyEl();
+      if (body === null) return false;
+      const text = (body.textContent || "").replace(/\s+/g, "");
+      if (text.length > 2) return true;
+      return body.querySelector("button, [class*='_entry'], [class*='_guide'], img, svg, input, textarea") !== null;
+    }
+    function rightLoadingElRef() {
+      if (rightLoadingEl === null) {
+        rightLoadingEl = document.createElement("div");
+        rightLoadingEl.className = "dms-right-loading";
+        rightLoadingEl.setAttribute("aria-hidden", "true");
+        rightLoadingEl.innerHTML = '<div class="dms-right-loading-spinner"></div><div class="dms-right-loading-text">正在加载右侧栏…</div>';
+        document.body.appendChild(rightLoadingEl);
+      }
+      return rightLoadingEl;
+    }
+    function showRightLoading() {
+      const el = rightLoadingElRef();
+      el.hidden = false;
+      el.setAttribute("aria-hidden", "false");
+    }
+    function hideRightLoading() {
+      if (rightLoadingEl !== null) { rightLoadingEl.hidden = true; rightLoadingEl.setAttribute("aria-hidden", "true"); }
+    }
+    function stopRightOpenWait(hideLoader) {
+      if (rightOpenWaitTimer !== 0) { clearInterval(rightOpenWaitTimer); rightOpenWaitTimer = 0; }
+      if (hideLoader === true) hideRightLoading();
+    }
+    function startRightOpenWait() {
+      stopRightOpenWait(false);
+      rightWaitFallbackTried = false;
+      showRightLoading();
+      // 内容未就绪时最多做一次宿主正常展开 fallback，然后等 tab/正文出现。
+      if (!rightPanelHasTab()) {
+        rightWaitFallbackTried = true;
+        const expand = $("[data-sidebar-right-expand]");
+        if (expand !== null) { rightFallbackOpen = true; clickHost(expand); }
+      }
+      // 任务34：不自动关闭；加载占位一直可见，直到内容就绪或用户主动关闭。
+      rightOpenWaitTimer = setInterval(() => {
+        if (!rightVisible) { stopRightOpenWait(true); return; }
+        if (rightPanelContentReady()) { stopRightOpenWait(true); return; }
+        if (!rightPanelHasTab() && !rightWaitFallbackTried) {
+          rightWaitFallbackTried = true;
+          const expand = rightExpandTriggerInHeader();
+          if (expand !== null) { rightFallbackOpen = true; clickHost(expand); }
+        }
+      }, 120);
+    }
+    const clickHost = (el) => {
+      if (el === null) return false;
+      rightPreloadClick = true;
+      try { el.click(); } catch (error) { /* host busy */ } finally { rightPreloadClick = false; }
+      return true;
+    };
+    // 任务32：右栏 preload 每个 session 只尝试一次；sync() 永不触发宿主点击。
+    // 流程：宿主 collapsed → 点一次 expand → 等真正出现 tab（空 pane 不算）→ 必要时
+    // 点一次宿主 [data-dockkit-add-tab] → 有 tab 后立刻 toggle 回 collapsed。
+    // 失败则也 toggle 回 collapsed（保证右上角 expand 按钮回来）并标记 fail；
+    // 打开时不再展示空面板（由 openRight 的用户触发 fallback 处理）。
+    function preloadRight() {
+      if (!isPhone() || settingsPanel() !== null || rightVisible) return;
+      if (rightPreloadState === "busy") return;
+      const sid = rightSessionId();
+      if (sid === "") return;
+      if (rightPreloadAttempts.has(sid)) return;
+      if (hostRightOpen()) {
+        rightPreloadAttempts.add(sid);
+        clickHost($("[data-sidebar-right-toggle]"));
+        rightPreloadState = rightPanelHasTab() ? "ok" : "idle";
+        return;
+      }
+      const expand = $("[data-sidebar-right-expand]");
+      if (expand === null) return;
+      const now = performance.now();
+      if (now - lastRightPreloadAt < 2000) return;
+      lastRightPreloadAt = now;
+      rightPreloadAttempts.add(sid);
+      rightPreloadState = "busy";
+      document.documentElement.classList.add("dms-preload-right");
+      clickHost(expand);
+      const started = now;
+      let addTried = false;
+      let collapsed = false;
+      const collapse = () => {
+        if (collapsed) return;
+        if (hostRightOpen()) {
+          if (!rightPanelHasTab() && !addTried) {
+            const addBtn = $("[data-dockkit-add-tab]");
+            if (addBtn !== null) { addTried = true; clickHost(addBtn); }
+          }
+          if (rightPanelContentReady()) {
+            collapsed = true;
+            setTimeout(() => {
+              clickHost($("[data-sidebar-right-toggle]"));
+              rightPreloadState = "ok";
+              document.documentElement.setAttribute("data-dms-right-preloaded", "1");
+            }, 80);
+            return;
+          }
+        }
+        if (performance.now() - started > 2600) {
+          collapsed = true;
+          clickHost($("[data-sidebar-right-toggle]"));
+          rightPreloadState = "fail";
+          document.documentElement.setAttribute("data-dms-right-preload-failed", "1");
+          return;
+        }
+        requestAnimationFrame(collapse);
+      };
+      requestAnimationFrame(collapse);
+    }
     function repairLeftHost() {
       if (leftRepairTimer !== 0) { clearTimeout(leftRepairTimer); leftRepairTimer = 0; }
       if (!leftVisible) return;
       const root = document.documentElement;
       root.classList.remove("dms-left-hide");
       if (!hostLeftOpen()) {
-        if (!rightOpen() && !root.classList.contains("dms-right-open")) {
+        if (!rightVisible && !root.classList.contains("dms-right-open")) {
           sidebarExpandBusy = false;
           ensureSidebarMounted();
         }
@@ -244,79 +391,264 @@ window.__ModuleLoader__.load({
     function openRight() {
       rightVisible = true;
       rightActivityAt = performance.now();
+      rightFullIntent = false;
       document.documentElement.classList.add("dms-right-open");
-      const btn = rightExpand();
-      if (btn) btn.click();
+      if (!rightPanelContentReady()) startRightOpenWait();
+      else stopRightOpenWait(true);
     }
     function closeRight() {
-      // Keep the host's own fullscreen mode in sync: leaving it here avoids the
-      // next open unexpectedly restoring a 100vw panel (the host chrome that
-      // would show this state is hidden in the drawer).
-      if (rightFullscreen() && performance.now() - rightFullExitAt > 700) exitRightFullscreen(false);
       rightVisible = false;
+      rightFullIntent = false;
       rightActivityAt = performance.now();
-      document.documentElement.classList.remove("dms-right-open");
-      const btn = rightToggle();
-      if (btn) btn.click();
+      stopRightOpenWait(true);
+      const root = document.documentElement;
+      root.classList.remove("dms-right-full");
+      root.classList.remove("dms-right-open");
+      if (rightFallbackOpen) {
+        rightFallbackOpen = false;
+        clickHost($("[data-sidebar-right-toggle]"));
+      }
     }
-    let rightFullExitAt = 0;
-    let rightFullBtn = null;
-    const rightFullscreen = () => $('[data-sidebar-right-panel="fullscreen"]') !== null;
-    function exitRightFullscreen(closeDrawer) {
-      // The host owns fullscreen layout; its panel-chrome button is hidden by CSS
-      // but can still be dispatched, so we flip the host state instead of writing
-      // layout state ourselves (single source of truth for back key and button).
-      rightFullExitAt = performance.now();
-      const modeBtn = $("[data-sidebar-right-mode]");
-      if (modeBtn !== null) modeBtn.click();
+    // Plugin-owned intent: only our [全屏] button may put the host panel into its
+    // fullscreen layout. Everything else (edge swipe, back key, host re-render)
+    // normalizes back to the 88vw sidebar state (用户 0.6.18 修正第一条).
+    let rightFullIntent = false;
+        function exitRightFullscreen(closeDrawer) {
+      rightFullIntent = false;
       document.documentElement.classList.remove("dms-right-full");
       if (closeDrawer === true) closeRight();
     }
-    function ensureRightFullButton() {
-      if (rightFullBtn === null) {
-        rightFullBtn = document.createElement("button");
-        rightFullBtn.type = "button";
-        rightFullBtn.className = "dms-iconbtn dms-right-fullbtn";
-        rightFullBtn.addEventListener("click", (event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          if (document.documentElement.classList.contains("dms-right-full")) exitRightFullscreen(false);
-          else {
-            const modeBtn = $("[data-sidebar-right-mode]");
-            if (modeBtn !== null) modeBtn.click();
-          }
-        });
-        document.body.appendChild(rightFullBtn);
-      }
-      const root = document.documentElement;
-      const full = root.classList.contains("dms-right-full");
-      rightFullBtn.style.display = "";
-      rightFullBtn.innerHTML = full ? ICONS.exitFull : ICONS.full;
-      rightFullBtn.setAttribute("aria-label", full ? "退出全屏" : "全屏");
-    }
-    function newSession() {
+        function newSession() {
       const btn = $('[class*="_newSession"]');
       if (btn) btn.click();
     }
 
+    function toggleRightFullscreen() {
+      const root = document.documentElement;
+      if (root.classList.contains("dms-right-full")) {
+        rightFullIntent = false;
+        root.classList.remove("dms-right-full");
+      } else {
+        rightFullIntent = true;
+        rightVisible = true;
+        root.classList.add("dms-right-open");
+        root.classList.add("dms-right-full");
+      }
+      syncRightChrome();
+    }
+    // 宿主 chrome 的 [全屏] glyph 由宿主 fullscreen 状态决定；手机上 autoFullscreen
+    // 恒真，glyph 会一直是“退出全屏”。插件按自己的 dms-right-full 状态替换 svg
+    // （按钮仍然是宿主的，不自建按钮）。
+    function syncRightChrome() {
+      if (!isPhone()) return;
+      const modeBtn = $("[data-sidebar-right-mode]");
+      if (modeBtn === null) return;
+      const full = document.documentElement.classList.contains("dms-right-full");
+      const want = full ? ICONS.exitFull : ICONS.full;
+      try {
+        if (modeBtn.innerHTML !== want) modeBtn.innerHTML = want;
+      } catch (error) { /* host busy */ }
+      modeBtn.setAttribute("aria-label", full ? "退出全屏" : "进入全屏");
+    }
+    function rightExpandTriggerInHeader() {
+      const header = document.querySelector('[class*="_centerCol"] header');
+      if (header === null) return null;
+      return header.querySelector("[data-sidebar-right-expand]") ||
+        header.querySelector('[aria-label="打开右侧边栏"], [aria-label="展开右侧边栏"], [aria-label="Open right sidebar"], [aria-label="Expand right sidebar"], [aria-label*="右侧栏"], [aria-label*="右侧边栏"]');
+    }
+    function rightExpandTrigger(node) {
+      if (!(node instanceof Element)) return null;
+      const direct = node.closest("[data-sidebar-right-expand]");
+      if (direct !== null) return direct;
+      const labelled = node.closest('[aria-label="打开右侧边栏"], [aria-label="展开右侧边栏"], [aria-label="Open right sidebar"], [aria-label="Expand right sidebar"], [aria-label*="右侧栏"], [aria-label*="右侧边栏"]');
+      if (labelled !== null) return labelled;
+      // 兼容宿主把按钮包在 wrapper 里 / 自定义 data-* 的情况：只在 header 内向上找 4 层。
+      const header = node.closest("header");
+      if (header === null) return null;
+      let el = node;
+      for (let depth = 0; el !== null && el !== header && depth < 5; depth++, el = el.parentElement) {
+        const cls = typeof el.className === "string" ? el.className : "";
+        if ((el.tagName === "BUTTON" || el.getAttribute("role") === "button") && /expand|sidebar-right/i.test(cls + " " + (el.getAttribute("data-sidebar-right-expand") || ""))) return el;
+      }
+      return null;
+    }
+    function installRightInterceptors() {
+      document.addEventListener("click", (event) => {
+        if (rightPreloadClick) return; // programmatic preload clicks must reach the host
+        if (!isPhone()) return;
+        const target = event.target instanceof Element ? event.target : null;
+        if (target === null) return;
+        const expanded = rightExpandTrigger(target);
+        const modeBtn = target.closest("[data-sidebar-right-mode]");
+        const toggle = target.closest("[data-sidebar-right-toggle]");
+        if (expanded === null && modeBtn === null && toggle === null) {
+          // 未命中：不 preventDefault，让宿主原生处理；若宿主真的把面板打开了，
+          // 延迟接管为插件状态，避免 preload CSS 把面板藏起来造成“没反应”。
+          if (target.closest("header") !== null) {
+            setTimeout(() => {
+              if (!rightVisible && hostRightOpen()) {
+                rightVisible = true;
+                rightActivityAt = performance.now();
+                document.documentElement.classList.add("dms-right-open");
+                showRightLoading();
+                if (!rightPanelContentReady()) startRightOpenWait();
+              }
+            }, 250);
+          }
+          return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        if (typeof event.stopImmediatePropagation === "function") event.stopImmediatePropagation();
+        if (expanded !== null) {
+          // 任务34：先同步给出可见反馈（状态+class+加载占位），再做任何内容检查。
+          rightVisible = true;
+          rightActivityAt = performance.now();
+          rightFullIntent = false;
+          document.documentElement.classList.add("dms-right-open");
+          showRightLoading();
+          try { openRight(); } catch (error) { /* openRight 已给出基础反馈 */ }
+          return;
+        }
+        try {
+          if (toggle !== null) {
+            // 宿主 [收起] = 关闭插件抽屉（全屏态先退全屏，FEATURES 语义）
+            closeRight();
+            return;
+          }
+          if (modeBtn !== null) {
+            toggleRightFullscreen();
+            return;
+          }
+          openRight();
+        } catch (error) {
+          // 保证点击永远不会“无反应”：至少打开抽屉/加载占位。
+          rightVisible = true;
+          document.documentElement.classList.add("dms-right-open");
+          startRightOpenWait();
+        }
+      }, true);
+    }
+    function sessionActionsAnchor() {
+      return $('header [aria-label="更多操作"], header [aria-label="More actions"], header [aria-haspopup="menu"][class*="_moreButton"]');
+    }
+    function hostViewTabs() {
+      return $$('[data-conversation-tabs] [role="tab"]');
+    }
+    function hostViewTabLabel(tab) {
+      return (tab.textContent || "").trim();
+    }
+    function closeSessionActionsMenu() {
+      const anchor = sessionActionsAnchor();
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+      setTimeout(() => {
+        if (anchor !== null && anchor.getAttribute("aria-expanded") === "true") {
+          try { anchor.click(); } catch (error) { /* host busy */ }
+        }
+      }, 40);
+    }
+    function injectViewTabsIntoMenu(menu) {
+      if (menu === null) return false;
+      const menuText = menu.textContent || "";
+      if (!/下载 Session 日志|Download session log/.test(menuText)) return false;
+      const tabs = hostViewTabs().filter((tab) => /^(对话|轨迹|Chat|Trajectory)$/.test(hostViewTabLabel(tab)));
+      if (tabs.length === 0) return false;
+      const sample = menu.querySelector('[role="menuitem"]');
+      if (sample === null) return false;
+      const signature = tabs.map((tab) => hostViewTabLabel(tab) + (tab.getAttribute("aria-selected") === "true" ? "1" : "0")).join("|");
+      const existing = menu.querySelectorAll("[data-dms-view-tab]");
+      if (existing.length === tabs.length && menu.getAttribute("data-dms-vtab-sig") === signature) return true;
+      for (const old of existing) old.remove();
+      for (const tab of tabs) {
+        const label = hostViewTabLabel(tab);
+        const active = tab.getAttribute("aria-selected") === "true";
+        const item = sample.cloneNode(true);
+        item.setAttribute("data-dms-view-tab", label);
+        item.setAttribute("role", "menuitem");
+        item.removeAttribute("aria-disabled");
+        item.removeAttribute("disabled");
+        const svg = item.querySelector("svg");
+        if (svg !== null) svg.remove();
+        const spans = [...item.querySelectorAll("span")].filter((span) => (span.textContent || "").trim().length > 0);
+        const labelEl = spans.length > 0 ? spans[spans.length - 1] : null;
+        if (labelEl !== null) labelEl.textContent = (active ? "✓ " : "") + label;
+        else item.textContent = (active ? "✓ " : "") + label;
+        item.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          try { tab.click(); } catch (error) { /* host busy */ }
+          closeSessionActionsMenu();
+        });
+        menu.appendChild(item);
+      }
+      menu.setAttribute("data-dms-vtab-sig", signature);
+      document.documentElement.classList.add("dms-vtabs-menu");
+      rightViewTabsFallback = false;
+      rightViewTabsInjected = true;
+      return true;
+    }
+    function scanViewTabsMenu() {
+      for (const menu of $$('[role="menu"]')) {
+        const isSessionMenu = /下载 Session 日志|Download session log/.test(menu.textContent || "");
+        if (!isSessionMenu) continue;
+        if (injectViewTabsIntoMenu(menu)) return;
+        // 注入失败：立即恢复 header tab 常驻，不能让两个入口都消失；
+        // 只有 tabs 确实存在时才把 fallback 固化为 sticky（否则下次对话页仍可尝试注入）。
+        document.documentElement.classList.remove("dms-vtabs-menu");
+        if (hostViewTabs().length > 0) rightViewTabsFallback = true;
+      }
+    }
+    function installViewTabsMenu() {
+      // 任务33：header 的「对话/轨迹」tab 行隐藏，移入宿主「...」菜单；注入失败则恢复常驻。
+      document.documentElement.classList.add("dms-vtabs-menu");
+      const schedule = () => {
+        if (rightViewMenuRaf !== 0) return;
+        rightViewMenuRaf = requestAnimationFrame(() => { rightViewMenuRaf = 0; scanViewTabsMenu(); });
+      };
+      document.addEventListener("click", (event) => {
+        const target = event.target instanceof Element ? event.target : null;
+        if (target === null || target.closest('[aria-haspopup="menu"]') === null) return;
+        setTimeout(scanViewTabsMenu, 30);
+      }, true);
+      rightViewMenuObserver = new MutationObserver(schedule);
+      rightViewMenuObserver.observe(document.body, { childList: true, subtree: true });
+      // 安全回退：只有在"已进入对话页且有 tabs、但宿主根本没有「更多操作」按钮"时
+      // 才恢复 header tabs 常驻（避免出现既无 tabs 又无菜单项的真空）；默认保持隐藏。
+      setInterval(() => {
+        if (rightViewTabsInjected || rightViewTabsFallback) return;
+        if (hostViewTabs().length === 0) return;
+        const header = $('[class*="_centerCol"] header');
+        const conversation = header !== null && header.querySelector("[data-conversation-header-leading], [data-conversation-header-corner]") !== null;
+        if (!conversation) return;
+        if (sessionActionsAnchor() === null) {
+          rightViewTabsFallback = true;
+          document.documentElement.classList.remove("dms-vtabs-menu");
+        }
+      }, 2000);
+    }
     function ensureTopButtons() {
       if (!isPhone()) return;
       const header = $('[class*="_centerCol"] header');
       if (header === null) return;
       const leading = header.querySelector("[data-conversation-header-leading]");
-      if (leading !== null && leading.querySelector(".dms-menu") === null) {
-        leading.appendChild(makeButton("menu", "打开侧边栏", () => toggleLeft()));
+      if (leading !== null) {
+        // 任务29：左上角统一为「三」汉堡；保留并修正一个 .dms-menu（旧版本/HMR 可能
+        // 注入了克隆宿主图标的按钮），多余的删除，宿主的 leading 图标由 CSS 隐藏。
+        const menus = leading.querySelectorAll(".dms-menu");
+        let menu = menus.length > 0 ? menus[0] : null;
+        for (let i = 1; i < menus.length; i++) menus[i].remove();
+        if (menu === null) {
+          menu = makeButton("menu", "打开侧边栏", () => toggleLeft());
+          leading.appendChild(menu);
+        }
+        if (menu.getAttribute("aria-label") !== "打开侧边栏") menu.setAttribute("aria-label", "打开侧边栏");
       }
-      const corner = header.querySelector("[data-conversation-header-corner]");
+      const corner = header.querySelector("[data-conversation-header-corner]") ||
+        header.querySelector('[class*="_headerCorner"]');
       if (corner !== null) {
-        if (corner.querySelector(".dms-panel") === null) {
-          corner.insertBefore(makeButton("panel", "打开右侧边栏", () => {
-            if (rightOpen()) closeRight(); else openRight();
-          }), corner.firstChild);
-        }
-        if (corner.querySelector(".dms-plus") === null) {
-          corner.appendChild(makeButton("plus", "新建会话", () => newSession()));
-        }
+        // 任务 28：右栏入口改用宿主自带的 [data-sidebar-right-expand] 图标，
+        // 不再注入自建 .dms-panel；只清理旧版本可能残留的注入按钮（HMR）。
+        for (const stale of corner.querySelectorAll(".dms-panel, .dms-plus")) stale.remove();
       }
     }
 
@@ -432,7 +764,7 @@ window.__ModuleLoader__.load({
       window.__dshmBack = function dshMobileShellBack() {
         if (settingsPanel() !== null) { if (settingsBack()) return true; }
         if (document.documentElement.classList.contains("dms-right-full")) { exitRightFullscreen(true); return true; }
-        if (rightOpen()) { closeRight(); return true; }
+        if (rightVisible) { closeRight(); return true; }
         if (leftOpen()) { toggleLeft(); return true; }
         const layout = ctxRef && ctxRef.layout;
         if (layout && typeof layout.selectPanel === "function" && $('[data-composer-card]') === null) {
@@ -448,7 +780,7 @@ window.__ModuleLoader__.load({
       };
       document.addEventListener("keydown", (e) => {
         if (e.key !== "Escape") return;
-        if (rightOpen() || leftOpen()) {
+        if (rightVisible || leftOpen()) {
           e.preventDefault();
           window.__dshmBack();
         }
@@ -621,7 +953,7 @@ window.__ModuleLoader__.load({
               applyFrame("left", -drawerWidth());
             } else {
               root.classList.add("dms-gesture-arming-right");
-              if (!rightOpen()) openRight();
+              if (!rightVisible) openRight();
               applyFrame("right", drawerWidth());
             }
             let armTries = 0;
@@ -787,15 +1119,11 @@ window.__ModuleLoader__.load({
       maybeRestoreWorkspace();
       const root = document.documentElement;
       root.classList.toggle("dms-left-open", leftOpen());
-      // The host can keep data-sidebar-right-open for a frame after closeRight();
-      // don't let the 400ms reconciler flash the right drawer back open right
-      // after a close (it would also block an immediate left-swipe).
-      const rightClosing = !rightVisible && performance.now() - rightActivityAt < 320;
-      root.classList.toggle("dms-right-open", rightVisible || (rightOpen() && !rightClosing));
-      // Minimal drift correction: if the host closed the right panel on its own
-      // (e.g. its own close button), drop our stale plugin state after the
-      // open/close grace window so the left preload path is not blocked.
-      if (rightVisible && !rightOpen() && performance.now() - rightActivityAt > 600) rightVisible = false;
+      // The right drawer mirrors the left one: the host panel is preloaded and
+      // stays mounted, so rightVisible is the single state source (no host-marker
+      // reconciliation, no retry clicks).
+      root.classList.toggle("dms-right-open", rightVisible);
+      if (rightVisible && rightOpenWaitTimer !== 0 && rightPanelContentReady()) stopRightOpenWait(true);
       const panel = settingsPanel();
       root.classList.toggle("dms-settings-open", panel !== null);
       if (panel !== null) ensureSettings(panel);
@@ -806,6 +1134,7 @@ window.__ModuleLoader__.load({
         root.classList.remove("dms-plugin-section");
         if (!leftOpen()) root.classList.remove("dms-gesture-opened");
       }
+      if (!rightViewTabsFallback) document.documentElement.classList.add("dms-vtabs-menu");
       ensureTopButtons();
       for (const header of $$('[class*="_centerCol"] header')) {
         const conversation = header.querySelector("[data-conversation-header-leading], [data-conversation-header-corner]") !== null;
@@ -816,12 +1145,8 @@ window.__ModuleLoader__.load({
       for (const extra of $$('[class*="_statusLine"], [class*="_sessionStats"]')) normalizeSeparators(extra);
       const hero = $('[class*="_composerHero"]');
       root.classList.toggle("dms-hero-home", hero !== null && panel === null);
-      // Fullscreen is host-owned ([data-sidebar-right-panel]); mirror it to a class
-      // so the mobile CSS can expand the drawer and the back key can exit it.
-      const full = isPhone() && rightOpen() && $('[data-sidebar-right-panel="fullscreen"]') !== null;
-      root.classList.toggle("dms-right-full", full);
-      if (isPhone()) ensureRightFullButton();
-      else if (rightFullBtn !== null) rightFullBtn.style.display = "none";
+      // Fullscreen is plugin-state only (host chrome [全屏] toggles dms-right-full).
+      syncRightChrome();
       if (isPhone() && !leftVisible && !rightVisible) forceMountSidebar();
     }
 
@@ -855,11 +1180,14 @@ window.__ModuleLoader__.load({
       let nativeCaps = null;
       let nativeCapsPromise = null;
       const nativePending = new Map();
-      let photoDrag = null;
+      let photoGesture = null;
+      let photoPaint = null;
       let photoDragPoint = null;
       let photoAutoScrollRaf = 0;
+      let photoLongPressTimer = 0;
       let suppressPhotoClick = false;
-
+      let sheetMeasureDone = false;
+      let photoSuppressTimer = 0;
       const nativeBridge = () => {
         const api = window.DSHNative;
         return api && typeof api.request === "function" ? api : null;
@@ -901,7 +1229,6 @@ window.__ModuleLoader__.load({
           sheet.setAttribute("role", "dialog");
           sheet.setAttribute("aria-label", "添加附件");
           sheet.innerHTML =
-            '<div class="dms-attach-handle"></div>' +
             '<div class="dms-attach-recent" hidden><div class="dms-attach-recent-title">最近照片</div><div class="dms-attach-recent-strip"></div></div>' +
             '<div class="dms-attach-actions">' +
               '<button type="button" class="dms-attach-action" data-kind="camera"><span class="dms-attach-ico">' + ICONS.camera + '</span><span>拍照</span></button>' +
@@ -911,36 +1238,88 @@ window.__ModuleLoader__.load({
           document.body.appendChild(sheet);
           recentWrap = sheet.querySelector(".dms-attach-recent");
           recentStrip = sheet.querySelector(".dms-attach-recent-strip");
+          const PHOTO_LONG_PRESS_MS = 500;
+          const PHOTO_MOVE_SLOP = 6;
+          const cancelPhotoLongPress = () => {
+            if (photoLongPressTimer !== 0) { clearTimeout(photoLongPressTimer); photoLongPressTimer = 0; }
+          };
+          const endPhotoGesture = () => {
+            cancelPhotoLongPress();
+            const gesture = photoGesture;
+            const painted = gesture !== null && gesture.mode === "paint";
+            photoGesture = null;
+            photoPaint = null;
+            photoDragPoint = null;
+            stopPhotoAutoScroll();
+            if (painted) {
+              // The tap that ends a paint session must not toggle a second time.
+              suppressPhotoClick = true;
+              if (photoSuppressTimer !== 0) clearTimeout(photoSuppressTimer);
+              photoSuppressTimer = setTimeout(() => { photoSuppressTimer = 0; suppressPhotoClick = false; }, 420);
+            }
+          };
+          // Android long-press on an image would raise the native context menu and
+          // cancel the touch stream; the sheet owns this gesture instead.
+          recentStrip.addEventListener("contextmenu", (event) => { event.preventDefault(); }, { passive: false });
           recentStrip.addEventListener("touchstart", (event) => {
             const cell = event.target instanceof Element ? event.target.closest(".dms-attach-photo") : null;
-            if (cell === null) return;
+            if (cell === null || event.touches.length !== 1) return;
             const t = event.touches[0];
+            cancelPhotoLongPress();
             suppressPhotoClick = false;
-            photoDrag = { mode: cell.classList.contains("selected") ? "deselect" : "select", last: null };
-            photoDragPoint = { x: t.clientX, y: t.clientY };
-            photoDragTo(cell);
-            startPhotoAutoScroll();
-            if (event.cancelable) event.preventDefault();
-          }, { passive: false });
+            photoGesture = { startX: t.clientX, startY: t.clientY, cell, mode: "pending" };
+            photoPaint = null;
+            photoDragPoint = null;
+            stopPhotoAutoScroll();
+            // Native overflow scrolling stays untouched until the long press wins:
+            // no preventDefault and no scrollLeft writes here (EXCELLENT-CASES 案例1).
+            photoLongPressTimer = setTimeout(() => {
+              photoLongPressTimer = 0;
+              const gesture = photoGesture;
+              if (gesture === null || gesture.mode !== "pending") return;
+              gesture.mode = "paint";
+              photoPaint = { last: null };
+              suppressPhotoClick = true;
+              photoDragPoint = { x: gesture.startX, y: gesture.startY };
+              photoDragTo(gesture.cell);
+              startPhotoAutoScroll();
+              try {
+                if (navigator !== undefined && typeof navigator.vibrate === "function") navigator.vibrate(10);
+              } catch (error) { /* vibration is optional */ }
+            }, PHOTO_LONG_PRESS_MS);
+          }, { passive: true });
           recentStrip.addEventListener("touchmove", (event) => {
-            if (photoDrag === null) return;
+            const gesture = photoGesture;
+            if (gesture === null || event.touches.length !== 1) return;
             const t = event.touches[0];
+            const dx = t.clientX - gesture.startX;
+            const dy = t.clientY - gesture.startY;
+            if (gesture.mode === "pending") {
+              if (Math.abs(dx) <= PHOTO_MOVE_SLOP && Math.abs(dy) <= PHOTO_MOVE_SLOP) return;
+              // Finger moved before the long press matured: hand the gesture back to
+              // the browser's native horizontal scroller (0.6.13 behaviour).
+              cancelPhotoLongPress();
+              gesture.mode = "native";
+              return;
+            }
+            if (gesture.mode !== "paint") return;
+            // Paint mode owns the gesture now: prevent native scroll, toggle cells and
+            // auto-scroll at the strip edges.
+            if (event.cancelable) event.preventDefault();
             photoDragPoint = { x: t.clientX, y: t.clientY };
             photoDragTo(photoCellAtPoint(t.clientX, t.clientY));
             startPhotoAutoScroll();
-            if (event.cancelable) event.preventDefault();
           }, { passive: false });
-          const endPhotoDrag = () => {
-            if (photoDrag !== null) {
-              suppressPhotoClick = true;
-              setTimeout(() => { suppressPhotoClick = false; }, 400);
-            }
-            photoDrag = null;
-            photoDragPoint = null;
-            stopPhotoAutoScroll();
-          };
-          recentStrip.addEventListener("touchend", endPhotoDrag, { passive: true });
-          recentStrip.addEventListener("touchcancel", endPhotoDrag, { passive: true });
+          recentStrip.addEventListener("touchend", endPhotoGesture, { passive: true });
+          recentStrip.addEventListener("touchcancel", endPhotoGesture, { passive: true });
+          // Single tap = toggle this photo. One delegated listener avoids duplicated
+          // per-cell handlers after every re-render.
+          recentStrip.addEventListener("click", (event) => {
+            const cell = event.target instanceof Element ? event.target.closest(".dms-attach-photo") : null;
+            if (cell === null) return;
+            if (suppressPhotoClick) { suppressPhotoClick = false; return; }
+            togglePhoto(cell);
+          });
           sheet.addEventListener("click", (event) => {
             const action = event.target instanceof Element ? event.target.closest("[data-kind]") : null;
             if (action !== null) {
@@ -984,7 +1363,11 @@ window.__ModuleLoader__.load({
         const params = kind === "files" ? { multiple: true, max: 20 } : { source, multiple: kind !== "camera", max: 20 };
         const reply = await nativeCall(method, params, 600000);
         const items = reply && Array.isArray(reply.files) ? reply.files : [];
-        if (items.length === 0) return true;
+        if (items.length === 0) {
+          // 用户取消/没拍照：完全静默（用户 0.6.18 反馈）。真正失败由 pickFromDevice
+          // 的 catch（调用失败/超时）提示。
+          return true;
+        }
         const files = [];
         for (const item of items) {
           if (!item || typeof item.url !== "string") continue;
@@ -1005,7 +1388,11 @@ window.__ModuleLoader__.load({
         }
         loadNativeCaps().then((caps) => {
           if (caps !== null && caps.pickers === true) {
-            pickNative(kind).catch(() => { fallbackPick(kind); });
+            pickNative(kind).catch(() => {
+              const label = kind === "camera" ? "相机" : kind === "gallery" ? "相册" : "文件选择器";
+              showToast(label + "调用失败，改用系统选择器");
+              fallbackPick(kind);
+            });
           } else {
             fallbackPick(kind);
           }
@@ -1052,6 +1439,15 @@ window.__ModuleLoader__.load({
         if (!delivered) showToast("这块输入框暂不支持添加附件");
       }
 
+      function composerAttachmentLabels() {
+        const card = $('[data-composer-card]') || $('[data-composer-seat]') || $('[class*="_inputBar"]');
+        if (card === null) return [];
+        return $$('[class*="_remove"]', card).map((btn) => btn.getAttribute("aria-label") || "").filter((label) => label.length > 0);
+      }
+      function composerHasAttachment(name) {
+        if (!name) return false;
+        return composerAttachmentLabels().some((label) => label.indexOf(name) >= 0);
+      }
       function composerRemoveByName(name) {
         if (!name) return false;
         const card = $('[data-composer-card]') || $('[data-composer-seat]') || $('[class*="_inputBar"]');
@@ -1065,6 +1461,13 @@ window.__ModuleLoader__.load({
       }
       function selectPhoto(cell) {
         if (cell.classList.contains("selected") || cell.dataset.dmsPending === "1") return;
+        const name = cell.dataset.dmsName || "";
+        if (name && composerHasAttachment(name)) {
+          // Already an attachment in the composer (e.g. it survived a sheet close):
+          // just show the check, never add a duplicate (用户 修正2).
+          cell.classList.add("selected");
+          return;
+        }
         cell.dataset.dmsPending = "1";
         cell.classList.add("selected");
         void openRecent(cell.getAttribute("data-photo-id"), cell);
@@ -1072,7 +1475,12 @@ window.__ModuleLoader__.load({
       function deselectPhoto(cell) {
         if (!cell.classList.contains("selected")) return;
         cell.classList.remove("selected");
-        composerRemoveByName(cell.dataset.dmsName || "");
+        const name = cell.dataset.dmsName || "";
+        if (name && !composerRemoveByName(name) && photoPaint === null) {
+          // Could not identify the matching chip safely: keep the attachment, only
+          // uncheck the photo and tell the user (用户 修正2).
+          showToast("未能在输入框找到该附件，请手动移除");
+        }
       }
       function togglePhoto(cell) {
         if (cell.classList.contains("selected")) deselectPhoto(cell);
@@ -1087,20 +1495,20 @@ window.__ModuleLoader__.load({
         return el instanceof Element ? el.closest(".dms-attach-photo") : null;
       }
       function photoDragTo(cell) {
-        if (photoDrag === null || cell === null || cell === photoDrag.last) return;
-        photoDrag.last = cell;
-        if (photoDrag.mode === "select") selectPhoto(cell);
-        else deselectPhoto(cell);
+        if (photoPaint === null || cell === null || cell === photoPaint.last) return;
+        photoPaint.last = cell;
+        // Each cell passed toggles its own current selection state (用户 0.6.15).
+        togglePhoto(cell);
       }
       function stopPhotoAutoScroll() {
         if (photoAutoScrollRaf !== 0) { cancelAnimationFrame(photoAutoScrollRaf); photoAutoScrollRaf = 0; }
       }
       function startPhotoAutoScroll() {
         stopPhotoAutoScroll();
-        if (photoDrag === null || photoDragPoint === null || recentStrip === null) return;
+        if (photoPaint === null || photoDragPoint === null || recentStrip === null) return;
         const step = () => {
           photoAutoScrollRaf = 0;
-          if (photoDrag === null || photoDragPoint === null || recentStrip === null) return;
+          if (photoPaint === null || photoDragPoint === null || recentStrip === null) return;
           const rect = recentStrip.getBoundingClientRect();
           const edge = 44;
           let delta = 0;
@@ -1118,13 +1526,14 @@ window.__ModuleLoader__.load({
         if (recentWrap === null || recentStrip === null) return;
         const api = nativeBridge();
         if (api === null) { recentWrap.hidden = true; return; }
+        // 任务35：照片条固定占位高度，异步结果只换内容不改变 sheet 高度。
         recentWrap.hidden = false;
         recentStrip.innerHTML = '<div class="dms-attach-loading">正在读取最近照片…</div>';
         try {
           const reply = await nativeCall("recentPhotos", { limit: 20 }, 1800);
           const photos = reply && Array.isArray(reply.photos) ? reply.photos : [];
           recentStrip.innerHTML = "";
-          if (photos.length === 0) { recentWrap.hidden = true; return; }
+          if (photos.length === 0) { recentStrip.innerHTML = '<div class="dms-attach-loading">暂无最近照片</div>'; return; }
           for (const photo of photos) {
             if (!photo || typeof photo.thumbDataUrl !== "string") continue;
             const cell = document.createElement("button");
@@ -1140,17 +1549,15 @@ window.__ModuleLoader__.load({
             check.innerHTML = ICONS.check;
             cell.appendChild(check);
             cell.setAttribute("data-photo-id", photo.id === undefined || photo.id === null ? "" : String(photo.id));
-            cell.addEventListener("click", () => {
-              if (suppressPhotoClick) { suppressPhotoClick = false; return; }
-              togglePhoto(cell);
-            });
+            if (typeof photo.name === "string" && photo.name.length > 0) {
+              cell.dataset.dmsName = photo.name;
+              if (composerHasAttachment(photo.name)) cell.classList.add("selected");
+            }
             recentStrip.appendChild(cell);
           }
-          if (recentStrip.childElementCount === 0) recentWrap.hidden = true;
-          requestAnimationFrame(measureSheet);
+          if (recentStrip.childElementCount === 0) recentStrip.innerHTML = '<div class="dms-attach-loading">暂无最近照片</div>';
         } catch (error) {
-          recentWrap.hidden = true;
-          requestAnimationFrame(measureSheet);
+          recentStrip.innerHTML = '<div class="dms-attach-loading">暂无最近照片</div>';
         }
       }
 
@@ -1179,10 +1586,26 @@ window.__ModuleLoader__.load({
         }
       }
 
-      function measureSheet() {
+      function measureSheet(force) {
         if (sheet === null) return;
-        const height = root.classList.contains("dms-attach-open") ? sheet.getBoundingClientRect().height : 0;
-        root.style.setProperty("--dms-sheet-h", height + "px");
+        if (!root.classList.contains("dms-attach-open")) {
+          root.style.setProperty("--dms-sheet-h", "0px");
+          return;
+        }
+        if (sheetMeasureDone && force !== true) return;
+        const height = sheet.getBoundingClientRect().height;
+        const card = $('[data-composer-card]') || $('[data-composer-seat]');
+        let shift = height;
+        if (card !== null) {
+          // --dms-sheet-h shifts the composer seat up; recover the un-shifted card
+          // bottom and shift by exactly (sheet height - bottom inset) so the sheet's
+          // top edge lands on the composer's bottom edge (用户 修正1 / 截图20).
+          const current = parseFloat(window.getComputedStyle(root).getPropertyValue("--dms-sheet-h")) || 0;
+          const naturalBottom = card.getBoundingClientRect().bottom + current;
+          shift = height - Math.max(0, window.innerHeight - naturalBottom);
+        }
+        root.style.setProperty("--dms-sheet-h", Math.max(0, Math.round(shift)) + "px");
+        sheetMeasureDone = true;
       }
       function openSheet() {
         ensureUi();
@@ -1191,18 +1614,46 @@ window.__ModuleLoader__.load({
         root.classList.add("dms-attach-open");
         const active = document.activeElement;
         if (active instanceof HTMLElement) active.blur();
-        requestAnimationFrame(measureSheet);
+        // Keep the home greeter (logo + 探索未至之境) fully on screen: if the hero
+        // area was scrolled, bring it back to the top before measuring (用户 图3).
+        const hero = $('[class*="_centerCol"] [class*="_headline"]');
+        if (hero !== null) {
+          let scroller = hero.parentElement;
+          for (let depth = 0; scroller !== null && depth < 6; depth++) {
+            if (scroller.scrollHeight > scroller.clientHeight + 2) { scroller.scrollTop = 0; break; }
+            scroller = scroller.parentElement;
+          }
+        }
+        // 任务35：单次稳定测量。照片条从打开的第一帧就占固定高度（见 renderRecent），
+        // 之后异步加载/空结果都不再改 --dms-sheet-h，composer 不会二次下沉。
+        sheetMeasureDone = false;
+        requestAnimationFrame(() => requestAnimationFrame(() => measureSheet()));
         loadNativeCaps();
         renderRecent();
       }
-      function closeSheet() {
-        photoDrag = null;
+      function closeSheet(instant) {
+        photoGesture = null;
+        photoPaint = null;
         photoDragPoint = null;
+        if (photoLongPressTimer !== 0) { clearTimeout(photoLongPressTimer); photoLongPressTimer = 0; }
         stopPhotoAutoScroll();
+        suppressPhotoClick = false;
+        if (photoSuppressTimer !== 0) { clearTimeout(photoSuppressTimer); photoSuppressTimer = 0; }
         root.classList.remove("dms-attach-open");
-        root.style.setProperty("--dms-sheet-h", "0px");
+        if (instant === true) {
+          // Keyboard is about to open: drop the sheet and its composer offset in the
+          // same frame so the two layouts cannot overlap (用户 图6).
+          root.classList.add("dms-sheet-instant");
+          root.style.setProperty("--dms-sheet-h", "0px");
+          setTimeout(() => { root.classList.remove("dms-sheet-instant"); }, 90);
+        } else {
+          root.style.setProperty("--dms-sheet-h", "0px");
+        }
       }
-      window.addEventListener("resize", measureSheet);
+      closeAttachForSession = (instant) => {
+        if (document.documentElement.classList.contains("dms-attach-open")) closeSheet(instant === true);
+      };
+      window.addEventListener("resize", () => measureSheet(true));
       function toggleSheet() {
         if (root.classList.contains("dms-attach-open")) closeSheet();
         else openSheet();
@@ -1226,12 +1677,44 @@ window.__ModuleLoader__.load({
         const target = event.target instanceof Element ? event.target : null;
         if (target === null) return;
         if (target.closest(".dms-attach-sheet") !== null) return;
-        // Keep the sheet alive for the composer's own controls (shield / context /
-        // workspace / mode pickers). Their popovers render on host layer 1100,
-        // above this sheet (z-index 1049), so the controls and their menus work
-        // and the UI below the sheet is not torn down.
+        // Composer taps are handled by the mousedown guard: buttons keep the sheet
+        // open (their host popovers render above it), the dialog area closes it.
         if (target.closest('[data-composer-card], [data-composer-seat], [class*="_inputBar"]') !== null) return;
+        // A host popover opened from a composer control must not tear the sheet down.
+        if (target.closest('[role="menu"], [role="listbox"], [role="dialog"]') !== null) return;
         closeSheet();
+      }, true);
+
+      document.addEventListener("mousedown", (event) => {
+        if (!root.classList.contains("dms-attach-open")) return;
+        const target = event.target instanceof Element ? event.target : null;
+        if (target === null) return;
+        if (target.closest(".dms-attach-sheet") !== null) return;
+        const composer = target.closest('[data-composer-card], [data-composer-seat], [class*="_inputBar"]');
+        if (composer === null) return;
+        if (target.closest('button[aria-haspopup="listbox"]') !== null) {
+          // The "+" toggles on click (our handler); just stop the host keepFocus
+          // handler from refocusing the editor, which would raise the keyboard.
+          event.preventDefault();
+          event.stopPropagation();
+          return;
+        }
+        if (target.closest('button, [role="button"], [aria-haspopup], a, input, select') !== null) {
+          // Composer controls (shield / database / DSH / PTC / x) must stay usable
+          // while the sheet is open (用户 修正3): only swallow the host keepFocus
+          // handler, never close the sheet here. The "+" click handler toggles it.
+          event.preventDefault();
+          event.stopPropagation();
+          return;
+        } else {
+          // Tapping the dialog/composer (0.6.15): close the sheet first, then focus
+          // the input so the keyboard opens with no sheet layout left to overlap.
+          closeSheet(true);
+          const editor = composer.querySelector('[contenteditable="true"], [role="textbox"], textarea');
+          if (editor !== null && typeof editor.focus === "function") {
+            try { editor.focus(); } catch (error) { /* host busy */ }
+          }
+        }
       }, true);
 
       document.addEventListener("keydown", (event) => {
@@ -1296,6 +1779,71 @@ window.__ModuleLoader__.load({
       document.addEventListener("touchcancel", cancel, { passive: true, capture: true });
     }
 
+    function conversationSessionKey() {
+      const content = $("[data-conversation-content]");
+      const id = content === null ? "" : (content.getAttribute("data-conversation-session") || "");
+      return id + "@" + location.pathname + location.search;
+    }
+    function isEditorTarget(el) {
+      if (!(el instanceof Element)) return false;
+      if (el.closest("[data-composer-input]") !== null) return true;
+      return el.closest('[data-composer-card], [data-composer-seat], [class*="_inputBar"]') !== null;
+    }
+    function blurHostEditor(force) {
+      const active = document.activeElement;
+      if (!(active instanceof HTMLElement) || active === document.body) return;
+      if (!isEditorTarget(active)) return;
+      // A blur we caused ourselves 80/320ms later must not steal a focus the user
+      // just placed in the composer deliberately.
+      if (!force && lastPointerInEditor && performance.now() - lastPointerAt < 900) return;
+      try { active.blur(); } catch (error) { /* host busy */ }
+    }
+    function handleSessionSwitch() {
+      // 任务29：切换会话后不聚焦 composer、不弹键盘；弹层立即关闭。
+      if (typeof closeAttachForSession === "function") closeAttachForSession(true);
+      blurHostEditor(true);
+      setTimeout(() => blurHostEditor(false), 80);
+      setTimeout(() => blurHostEditor(false), 320);
+      setTimeout(() => preloadRight(), 900);
+    }
+    let sessionFastUntil = 0;
+    let sessionFastRaf = 0;
+    function fastSessionWatch() {
+      sessionFastRaf = 0;
+      const key = conversationSessionKey();
+      if (key !== sessionKeyPrev) {
+        sessionKeyPrev = key;
+        sessionFastUntil = 0;
+        handleSessionSwitch();
+        return;
+      }
+      if (performance.now() > sessionFastUntil) return;
+      sessionFastRaf = requestAnimationFrame(fastSessionWatch);
+    }
+    function installSessionWatcher() {
+      sessionKeyPrev = conversationSessionKey();
+      const startFastWatch = () => {
+        sessionFastUntil = performance.now() + 1500;
+        if (sessionFastRaf === 0) sessionFastRaf = requestAnimationFrame(fastSessionWatch);
+      };
+      const pointer = (event) => {
+        const target = event.target instanceof Element ? event.target : null;
+        lastPointerAt = performance.now();
+        lastPointerInEditor = target !== null && target.closest('[contenteditable="true"], [role="textbox"], textarea, input, [data-composer-card], [data-composer-seat], [class*="_inputBar"]') !== null;
+        if (target !== null && target.closest('[class*="_sessionRow"]') !== null) startFastWatch();
+      };
+      document.addEventListener("touchstart", pointer, { passive: true, capture: true });
+      document.addEventListener("pointerdown", pointer, { passive: true, capture: true });
+      const timer = setInterval(() => {
+        if (DEBUG_OFF.has("session-watch")) return;
+        const key = conversationSessionKey();
+        if (key === sessionKeyPrev) return;
+        sessionKeyPrev = key;
+        handleSessionSwitch();
+      }, 120);
+      if (timer && typeof timer.unref === "function") timer.unref();
+    }
+
     function installObserver() {
       // A low-frequency reconciler instead of a full-tree MutationObserver:
       // the host re-renders the frame on every layout transition, and a
@@ -1326,24 +1874,28 @@ window.__ModuleLoader__.load({
         installBackStack();
         installExitGuard();
         installGestures();
+        installRightInterceptors();
+        installViewTabsMenu();
         installKeyboard();
         installSettingsWatcher();
         installAttachSheet();
+        installSessionWatcher();
         if (!off.has("autoclose")) installDrawerAutoClose();
         if (!off.has("longpress")) installLongPress();
         if (!off.has("observer")) installObserver();
         installDebug();
         sync();
+        setTimeout(() => preloadRight(), 800);
         const wanted = new URLSearchParams(location.search).get("dms");
         if (wanted === "left" && !leftOpen()) setTimeout(() => toggleLeft(), 600);
-        if (wanted === "right" && !rightOpen()) setTimeout(() => openRight(), 900);
+        if (wanted === "right" && !rightVisible) setTimeout(() => openRight(), 900);
       };
       if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start, { once: true });
       else start();
       ctx.effect(() => () => {
         for (const tag of $$('style[data-dsh-mobile-shell="styles"]')) tag.remove();
         for (const el of $$(".dms-scrim")) el.remove();
-        for (const el of $$(".dms-attach-sheet, .dms-attach-backdrop")) el.remove();
+        for (const el of $$(".dms-attach-sheet, .dms-attach-backdrop, .dms-right-loading")) el.remove();
       }, "dsh-mobile-shell: teardown");
     }
 
