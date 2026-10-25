@@ -1,0 +1,38 @@
+:root {
+  --dms-blue: #426efe;
+  --dms-bg: #ffffff;
+  --dms-bg-soft: #f5f7fb;
+  --dms-surface: #ffffff;
+  --dms-surface-2: #f2f4f8;
+  --dms-text: #0f0f0f;
+  --dms-text-2: #6b7280;
+  --dms-line: rgba(15, 15, 15, 0.07);
+  --dms-scrim: rgba(16, 19, 26, 0.32);
+  --dms-radius-lg: 28px;
+  --dms-radius: 14px;
+  --dms-topbar: 52px;
+  --dms-shadow-card: 0 2px 14px rgba(15, 23, 42, 0.06), 0 0 0 0.5px rgba(15, 23, 42, 0.04);
+  --dms-shadow-drawer: 0 0 48px rgba(15, 23, 42, 0.22);
+  color-scheme: light;
+}
+html[data-ds-dark-theme], body[data-ds-dark-theme], [data-ds-dark-theme] {
+  --dms-bg: #10131a;
+  --dms-bg-soft: #0b0e13;
+  --dms-surface: #191b23;
+  --dms-surface-2: #23262f;
+  --dms-text: #f5f5f5;
+  --dms-text-2: #9aa0aa;
+  --dms-line: rgba(255, 255, 255, 0.08);
+  --dms-scrim: rgba(0, 0, 0, 0.52);
+  --dms-shadow-card: 0 2px 16px rgba(0, 0, 0, 0.4);
+  color-scheme: dark;
+}
+
+@media (max-width: 1023px) {
+  /* One source of truth for the drawer width: drawers and the page push must use the
+     same value or a gap appears between the pushed page and the drawer edge (hotfix
+     Bug3: 右栏与主界面之间有空隙). */
+  html { --dms-drawer-w: min(326px, 80vw); }
+  html, body { background: var(--dms-bg); }
+  body { -webkit-tap-highlight-color: transparent; overscroll-behavior: none; }
+

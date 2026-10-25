@@ -1,0 +1,23 @@
+  /* keyboard-inset fallback (only when the host did not resize the layout) */
+  html.dms-kb-open [data-composer-seat] {
+    transform: translateY(calc(-1 * var(--dms-kb, 0px))) !important;
+    transition: transform 0.16s ease-out !important;
+  }
+  html.dms-attach-open [data-composer-seat] {
+    transform: translateY(calc(-1 * var(--dms-sheet-h, 0px))) !important;
+    transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+  }
+  /* The composer's shield/context popovers live inside centerCol and use host
+     layer z-index 1100. While the sheet is open drop centerCol's own stacking
+     context so those popovers can paint above the sheet instead of being
+     clipped behind it (下方界面不消失、按钮 GUI 可见). */
+  html.dms-attach-open [class*="_centerCol"] { z-index: auto !important; }
+  /* the sheet must be gone in the same frame the keyboard starts opening */
+  html.dms-sheet-instant .dms-attach-sheet,
+  html.dms-sheet-instant [data-composer-seat],
+  html.dms-sheet-instant button[data-dms-plus="1"] svg { transition: none !important; }
+  @keyframes dms-drawer-in {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(0); }
+  }
+}

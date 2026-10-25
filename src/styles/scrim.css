@@ -1,0 +1,32 @@
+  /* ---------- scrim ------------------------------------------------------- */
+  .dms-scrim {
+    position: fixed; inset: 0; z-index: 80;
+    background: transparent !important;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+  html.dms-left-open .dms-scrim,
+  html.dms-right-open .dms-scrim { opacity: 1; pointer-events: auto; }
+
+  /* App-style push: the page moves with the drawer. This deliberately revisits
+     the "never push" rule in HANDOVER §14 — the blank strip seen then came from
+     the host sidebar not being mounted yet; with the P0 preload fix it is always
+     painted under the page, so pushing exposes the drawer, not a white gap.
+     Duration/easing match the drawer transition (0.24s) for a single motion. */
+  html.dms-left-open [class*="_centerCol"] {
+    transform: translate3d(var(--dms-drawer-w), 0, 0) !important;
+    opacity: 1 !important;
+    transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+  }
+  /* Right drawer is an app-style push again. The preloaded left sidebar is
+     hidden while the page is shifted, so closing cannot expose it. */
+  html.dms-right-open [class*="_centerCol"] {
+    transform: translate3d(calc(-1 * var(--dms-drawer-w)), 0, 0) !important;
+    opacity: 1 !important;
+    transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+  }
+  html:not(.dms-left-open):not(.dms-right-open) [class*="_centerCol"] {
+    transform: none !important;
+    transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+  }
+

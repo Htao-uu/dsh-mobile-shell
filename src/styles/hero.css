@@ -1,0 +1,41 @@
+  /* ---------- hero -------------------------------------------------------- */
+  [class*="_centerCol"] [class*="_headline"] {
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 14px !important;
+  }
+  [class*="_centerCol"] [class*="_fishHitbox"] svg { width: 64px !important; height: 48px !important; }
+  [class*="_centerCol"] [class*="_titleGroup"] { gap: 0 !important; }
+  [class*="_centerCol"] [class*="_titleGroup"] > span:first-child {
+    font-size: 21px !important; font-weight: 600 !important; letter-spacing: 0.2px !important;
+  }
+  [class*="_previewBadge"] { display: none !important; }
+
+  /* hero page: keep the greeter centred but pin the composer to the bottom */
+  html.dms-hero-home [class*="_scrollBody"] { justify-content: flex-start !important; }
+  html.dms-hero-home [data-composer-seat] {
+    flex: 1 1 auto !important; min-height: 0 !important;
+    display: flex !important; flex-direction: column !important;
+  }
+  html.dms-hero-home [class*="_composerHero"] {
+    flex: 1 1 auto !important; min-height: 0 !important;
+    display: flex !important; flex-direction: column !important;
+    justify-content: flex-end !important;
+  }
+  html.dms-hero-home [class*="_composerHero"] > [class*="_root"] {
+    margin-top: auto !important; margin-bottom: auto !important;
+  }
+  /* 0.6.15: compress the vertical rhythm only - the logo and 探索未至之境 keep
+     their host font/logo sizes (the user asked to undo the 0.6.14 shrink). */
+  html.dms-attach-open [class*="_centerCol"] [class*="_headline"] {
+    gap: 6px !important;
+    margin-top: 0 !important;
+  }
+
+  /* conversation messages align with the composer card width */
+  [class*="_centerCol"] [class*="_scroll"]:has(> [class*="_column"]) {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+

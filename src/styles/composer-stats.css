@@ -1,0 +1,72 @@
+  [class*="_composerDock"], [data-composer-dock] {
+    padding: 0 8px calc(3px + env(safe-area-inset-bottom, 0px)) !important;
+    min-height: 16px !important;
+    font-size: 10.5px !important;
+    color: var(--dms-text-2) !important;
+    display: flex !important; align-items: center !important;
+    gap: 4px !important;
+    overflow: hidden !important;
+  }
+  [class*="_composerDock"] > *, [data-composer-dock] > * {
+    min-width: 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    font-size: 10.5px !important;
+    line-height: 1.25 !important;
+    gap: 3px !important;
+  }
+  [class*="_composerDock"] svg, [data-composer-dock] svg { width: 12px !important; height: 12px !important; }
+  [class*="_composerDock"] button, [data-composer-dock] button { font-size: 10.5px !important; height: auto !important; padding: 0 1px !important; }
+  [data-composer-stats] {
+    gap: 0 !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 6px !important;
+    font-size: 10px !important;
+    line-height: 1.25 !important;
+    overflow: visible !important;
+  }
+  [data-composer-stats] > * {
+    flex: 0 0 auto !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    overflow: visible !important;
+  }
+  [data-composer-stats] [class*="_pill"] {
+    max-width: none !important;
+    padding: 0 1px !important;
+    gap: 2px !important;
+    font-size: 10px !important;
+    white-space: nowrap !important;
+  }
+  [data-composer-stats] [class*="_label"] {
+    min-width: 0 !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    white-space: nowrap !important;
+  }
+  [data-composer-stats] [class*="_sep"] {
+    display: inline-block !important;
+    width: 5px !important;
+    height: 1px !important;
+    margin: 0 2px !important;
+    overflow: hidden !important;
+    color: transparent !important;
+    font-size: 0 !important;
+    vertical-align: middle !important;
+  }
+  [data-composer-stats] { gap: 6px !important; }
+  [data-composer-stats] [class*="_label"] { display: inline-flex !important; align-items: center !important; gap: 2px !important; }
+  [data-composer-stats] svg { width: 10px !important; height: 10px !important; }
+  [class*="_statusBar"], [class*="_statusLine"], [class*="_sessionStats"], [class*="_statsLine"], [class*="_usageBar"] {
+    font-size: 11px !important;
+    gap: 6px !important;
+    padding-left: 12px !important; padding-right: 12px !important;
+    overflow: hidden !important;
+  }
+  [class*="_statusBar"] > *, [class*="_statusLine"] > *, [class*="_sessionStats"] > *, [class*="_statsLine"] > * {
+    min-width: 0 !important; overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important;
+  }
+

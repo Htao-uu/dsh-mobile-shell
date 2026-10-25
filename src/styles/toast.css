@@ -1,0 +1,21 @@
+  /* ---------- toast ------------------------------------------------------- */
+  .dms-toast {
+    position: fixed; left: 50%;
+    bottom: calc(190px + env(safe-area-inset-bottom, 0px));
+    transform: translateX(-50%) translateY(8px);
+    max-width: 76vw;
+    padding: 9px 16px;
+    border-radius: 999px;
+    background: rgba(22, 24, 30, 0.86);
+    color: #fff;
+    font-size: 13px;
+    line-height: 1.2;
+    white-space: nowrap;
+    z-index: 2147483600;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.16s ease, transform 0.16s ease;
+  }
+  .dms-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  html.dms-gesture-opened [class*="_frame"]:not([data-sidebar-collapsed]) > [class*="_sidebarCol"] { animation: none !important; }
+

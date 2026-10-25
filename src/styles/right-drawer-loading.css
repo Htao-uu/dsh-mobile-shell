@@ -1,0 +1,66 @@
+  /* 任务33：header 的「对话/轨迹」tab 行移入「...」菜单；未成功注入时由 JS 移除
+     dms-vtabs-menu，回退为 header 常驻。 */
+  html.dms-vtabs-menu [data-conversation-tabs] { display: none !important; }
+
+  /* 任务33：右栏加载占位（内容未就绪时避免空白抽屉）。 */
+  .dms-right-loading {
+    position: fixed;
+    top: 0; right: 0; bottom: 0;
+    width: var(--dms-drawer-w);
+    max-width: var(--dms-drawer-w);
+    z-index: 94;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    background: var(--dms-bg);
+    box-shadow: -10px 0 28px rgba(15, 23, 42, 0.18) !important;
+    pointer-events: none;
+  }
+  .dms-right-loading[hidden] { display: none !important; }
+  .dms-right-loading-spinner {
+    width: 26px; height: 26px; border-radius: 50%;
+    border: 2.5px solid var(--dms-line, rgba(148, 163, 184, 0.35));
+    border-top-color: var(--dms-blue, #426efe);
+    animation: dms-spin 0.8s linear infinite;
+  }
+  .dms-right-loading-text { font-size: 13px; color: var(--dms-text-2); }
+  @keyframes dms-spin { to { transform: rotate(360deg); } }
+  html.dms-right-full .dms-right-loading { width: 100vw; max-width: 100vw; }
+
+  /* 任务34：阴影只挂在面板/rightbarCol 上，随抽屉一起移动；删掉 body::after 固定渐变。 */
+  html.dms-right-open [class*="_frame"] > [class*="_rightbarCol"],
+  html.dms-right-full [class*="_frame"] > [class*="_rightbarCol"] {
+    overflow: visible !important;
+  }
+  html.dms-right-open [data-sidebar-right-session],
+  html.dms-right-full [data-sidebar-right-session] {
+    box-shadow: -10px 0 28px rgba(15, 23, 42, 0.18) !important;
+  }
+  /* 裁剪兜底：在 rightbarCol 左边缘画随抽屉移动的渐变（rightbarCol overflow:visible 时可见）。 */
+  html.dms-right-open [class*="_frame"] > [class*="_rightbarCol"]::before,
+  html.dms-right-full [class*="_frame"] > [class*="_rightbarCol"]::before {
+    content: "";
+    position: absolute;
+    top: 0; bottom: 0; left: 0;
+    width: 24px;
+    transform: translateX(-100%);
+    background: linear-gradient(to left, rgba(15, 23, 42, 0.20), rgba(15, 23, 42, 0));
+    pointer-events: none;
+    z-index: 5;
+  }
+
+  /* 任务35：打开态强制可交互——覆盖 preload 的 pointer-events:none；scrim(z80) 在面板(z90)
+     之下不挡点击；加载占位(z94) pointer-events:none 只做视觉覆盖。 */
+  html.dms-right-open [class*="_frame"] > [class*="_rightbarCol"],
+  html.dms-right-open [class*="_frame"] > [class*="_rightbarCol"] *,
+  html.dms-right-open [data-sidebar-right-session],
+  html.dms-right-open [data-sidebar-right-session] *,
+  html.dms-right-open [data-sidebar-right-panel],
+  html.dms-right-open [data-sidebar-right-panel] * {
+    pointer-events: auto !important;
+  }
+  html.dms-right-open .dms-right-loading,
+  html.dms-right-open .dms-right-loading * { pointer-events: none !important; }
+

@@ -1,0 +1,94 @@
+  /* ---------- composer attach sheet --------------------------------------- */
+  .dms-attach-backdrop {
+    display: block;
+    position: fixed; inset: 0; z-index: 1040;
+    background: transparent;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.2s ease-out;
+  }
+  html.dms-attach-open .dms-attach-backdrop { opacity: 1; }
+  .dms-attach-sheet {
+    display: flex;
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 1049;
+    transform: translateY(105%); opacity: 1; pointer-events: none;
+    transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
+    background: var(--dms-bg);
+    border-radius: 18px 18px 0 0;
+    /* 0.6.16: restore the 0.6.13 size/spacing; no upward shadow and no grabber
+       line (both read as the dark line the user flagged above 最近照片). */
+    padding: 8px 14px calc(14px + env(safe-area-inset-bottom, 0px));
+    box-shadow: none;
+    border: 0;
+    flex-direction: column; gap: 12px;
+    max-height: 50vh;
+    /* If the available height cannot fit the strip + action row, scroll inside
+       the sheet instead of squashing the content (用户 修正1.3). */
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .dms-attach-sheet::-webkit-scrollbar { display: none; }
+  .dms-attach-recent, .dms-attach-actions { flex: 0 0 auto; }
+  html.dms-attach-open .dms-attach-sheet { transform: translateY(0); pointer-events: auto; }
+  .dms-attach-recent { display: flex; flex-direction: column; gap: 7px; }
+  .dms-attach-recent[hidden] { display: none !important; }
+  .dms-attach-recent-title { font-size: 12px; line-height: 1.25; color: var(--dms-text-2); padding: 0 2px; }
+  .dms-attach-recent-strip {
+    display: flex; gap: 8px; overflow-x: auto; overflow-y: hidden;
+    padding: 2px 2px 4px; min-height: 72px; scrollbar-width: none;
+    scroll-behavior: auto;
+  }
+  .dms-attach-recent-strip::-webkit-scrollbar { display: none; }
+  .dms-attach-loading {
+    font-size: 12px; color: var(--dms-text-2);
+    display: flex; align-items: center;
+    min-height: 72px; width: 100%;
+    pointer-events: none;
+  }
+  .dms-attach-photo {
+    position: relative;
+    flex: 0 0 72px; width: 72px; height: 72px; padding: 0;
+    border: 0; border-radius: 10px; overflow: hidden; background: var(--dms-surface-2);
+  }
+  .dms-photo-check {
+    position: absolute; top: 4px; right: 4px;
+    width: 17px; height: 17px; border-radius: 50%;
+    background: rgba(0, 0, 0, 0.34); border: 1.5px solid rgba(255, 255, 255, 0.95);
+    color: transparent; display: flex; align-items: center; justify-content: center;
+    box-sizing: border-box;
+  }
+  .dms-attach-photo.selected .dms-photo-check { background: var(--dms-blue); color: #fff; border-color: #fff; }
+  .dms-attach-photo.selected img { opacity: 0.86; }
+  /* host attachment remove control: keep it the official compact size */
+  [class*="_remove"] {
+    width: 18px !important; height: 18px !important;
+    min-width: 18px !important; min-height: 18px !important;
+    font-size: 11px !important; line-height: 1 !important;
+  }
+  [class*="_remove"] svg { width: 10px !important; height: 10px !important; }
+  .dms-attach-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .dms-attach-recent-strip, .dms-attach-photo, .dms-attach-photo img {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  .dms-attach-actions { display: flex; gap: 10px; }
+  .dms-attach-action {
+    flex: 1 1 0; min-width: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px;
+    height: 86px; border: 0; border-radius: 14px;
+    background: var(--dms-surface-2); color: var(--dms-text);
+    font-size: 13px; font-weight: 500;
+  }
+  .dms-attach-action:active { background: var(--dms-line); }
+  .dms-attach-ico { display: inline-flex; color: var(--dms-text); }
+  .dms-attach-ico svg { width: 24px; height: 24px; }
+
+  /* the host "+" rotates into an "x" in step with the sheet (same 0.24s curve) */
+  button[data-dms-plus="1"] svg {
+    transform: rotate(0deg) !important;
+    transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+  }
+  html.dms-attach-open button[data-dms-plus="1"] svg { transform: rotate(45deg) !important; }
+

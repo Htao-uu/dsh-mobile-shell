@@ -1,0 +1,146 @@
+  /* ---------- left drawer ------------------------------------------------- */
+  [class*="_frame"][data-sidebar-collapsed] > [class*="_sidebarCol"] { display: none !important; }
+  [class*="_frame"]:not([data-sidebar-collapsed]) > [class*="_sidebarCol"] {
+    display: block !important;
+    position: fixed !important;
+    left: 0 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    width: var(--dms-drawer-w) !important;
+    max-width: var(--dms-drawer-w) !important;
+    height: 100% !important;
+    z-index: 90 !important;
+    background: var(--dms-bg-soft) !important;
+    border-right: none !important;
+    border-radius: 0 !important;
+    box-shadow: 10px 0 28px rgba(15, 23, 42, 0.18) !important;
+    /* The sidebar is preloaded and already painted under the page, so opening it
+       must not replay a slide-in animation (that was the source of the white
+       frame on fast drawer switches). Only the page push animates. */
+    animation: none !important;
+    transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+    box-sizing: border-box !important;
+    padding-top: env(safe-area-inset-top, 0px) !important;
+    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+    overflow: hidden !important;
+  }
+  [class*="_frame"]:not([data-sidebar-collapsed]) > [class*="_sidebarCol"] > *,
+  [class*="_frame"]:not([data-sidebar-collapsed]) > [class*="_sidebarCol"] [class*="_root"] {
+    width: 100% !important;
+    max-width: none !important;
+  }
+  [class*="_sidebarCol"] [class*="_root"] { background: transparent !important; width: 100% !important; }
+  [class*="_sidebarCol"] [class*="_logoRow"] { padding: 6px 10px 2px !important; }
+  [class*="_sidebarCol"] [class*="_regionArea"],
+  [class*="_sidebarCol"] [class*="_panelList"] { overflow-x: hidden !important; }
+  [class*="_sidebarCol"] [class*="_regionArea"] { padding-left: 8px !important; padding-right: 8px !important; }
+  [class*="_sidebarCol"] [class*="_workspaceHeader"],
+  [class*="_sidebarCol"] [class*="_workspaceRow"],
+  [class*="_sidebarCol"] [class*="_regionHeader"] {
+    width: 100% !important; min-width: 0 !important;
+    padding-left: 2px !important; padding-right: 2px !important;
+    display: flex !important; align-items: center !important; gap: 2px !important;
+    overflow: visible !important;
+  }
+  [class*="_sidebarCol"] [class*="_workspaceHeader"] > *:first-child,
+  [class*="_sidebarCol"] [class*="_workspaceRow"] > *:first-child {
+    min-width: 0 !important; flex: 0 1 auto !important;
+    overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important;
+  }
+  [class*="_sidebarCol"] [class*="_workspaceHeader"] button,
+  [class*="_sidebarCol"] [class*="_workspaceRow"] button { margin-left: 0 !important; margin-right: 0 !important; }
+  [class*="_sidebarCol"] [class*="_workspaceHeader"] > *:last-child,
+  [class*="_sidebarCol"] [class*="_workspaceRow"] > *:last-child { margin-right: 2px !important; }
+  [class*="_sidebarCol"] [class*="_sectionHeader"],
+  [class*="_sidebarCol"] [class*="_workspaceHeader"] {
+    width: 100% !important; min-width: 0 !important;
+    padding-left: 2px !important; padding-right: 2px !important;
+    gap: 2px !important; overflow: visible !important;
+    display: flex !important; align-items: center !important;
+  }
+  [class*="_sidebarCol"] [class*="_sectionHeader"] > *:first-child {
+    min-width: 40px !important; flex: 0 0 auto !important;
+    overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important;
+  }
+  [class*="_sidebarCol"] [class*="_sectionHeader"] [class*="_searchSlot"] {
+    flex: 1 1 auto !important; width: auto !important; min-width: 24px !important;
+  }
+  [class*="_sidebarCol"] [class*="_sectionHeader"] button {
+    width: 24px !important; height: 24px !important; min-width: 24px !important;
+    margin-left: 0 !important; margin-right: 2px !important;
+  }
+  [class*="_sidebarCol"] [class*="_sectionHeader"] [class*="_searchSlot"] + * { margin-left: auto !important; }
+  [class*="_sidebarCol"] [class*="_sectionHeader"] svg { width: 16px !important; height: 16px !important; }
+  [class*="_sidebarCol"] [class*="_workspaceHeader"] { font-size: 11px !important; }
+  [class*="_sidebarCol"] [class*="_workspaceHeader"] button {
+    width: 24px !important; height: 24px !important; min-width: 24px !important;
+  }
+  [class*="_sidebarCol"] [class*="_workspaceHeader"] svg { width: 16px !important; height: 16px !important; }
+  [class*="_sidebarCol"] [class*="_workspaceHeader"] [class*="_search"] {
+    width: 24px !important; min-width: 24px !important;
+  }
+  [class*="_sidebarCol"] [class*="_workspaceHeader"] > *,
+  [class*="_sidebarCol"] [class*="_workspaceRow"] > * { min-width: 0 !important; }
+  [class*="_sidebarCol"] [class*="_workspaceHeader"] button,
+  [class*="_sidebarCol"] [class*="_workspaceRow"] button { flex: 0 0 auto !important; }
+  /* the host hides these at narrow widths; a phone drawer still has room */
+  [class*="_sidebarCol"] [class*="_search"],
+  [class*="_sidebarCol"] [class*="_searchButton"] {
+    width: auto !important; min-width: 28px !important; max-width: none !important;
+    overflow: visible !important; flex: 0 0 auto !important;
+  }
+  [class*="_sidebarCol"] [class*="_search"] svg,
+  [class*="_sidebarCol"] [class*="_searchButton"] svg {
+    display: block !important; width: 20px !important; height: 20px !important; opacity: 1 !important;
+  }
+  [class*="_sidebarCol"] button[aria-label="搜索会话"],
+  [class*="_sidebarCol"] button[aria-label="视图选项"],
+  [class*="_sidebarCol"] button[aria-label="添加工作区"],
+  [class*="_sidebarCol"] [class*="_workspaceActions"] button,
+  [class*="_sidebarCol"] [class*="_searchButton"],
+  [class*="_sidebarCol"] [class*="_workspaceSearch"] {
+    display: inline-flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+  [class*="_sidebarCol"] [class*="_newSession"] {
+    justify-content: center !important;
+    gap: 8px !important;
+    text-align: center !important;
+  }
+  [class*="_sidebarCol"] [class*="_toggle"] { display: none !important; }
+  [class*="_sidebarCol"] [class*="_rowActions"] { display: none !important; }
+  .dshm-scrim { display: none !important; }
+  /* 任务29：顶部左上角统一为插件注入的「三」汉堡按钮；宿主 leading 里的原图标/其它
+     注入项一律隐藏，避免出现方框或重复按钮。 */
+  [data-conversation-header-leading] > :not(.dms-menu):not([data-sidebar-right-expand]):not(:has([data-sidebar-right-expand])) { display: none !important; }
+  /* 任务 28：对话页/主页面右上角直接用宿主自带的 expand 图标（不注入自建按钮），
+     统一成 DSH 官方 28×28/16px 透明图标按钮规格。 */
+  [class*="_centerCol"] header [data-sidebar-right-expand][data-dms-hidden="1"] {
+    display: none !important;
+  }
+  .dms-right-menu {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 28px !important;
+    height: 28px !important;
+    min-width: 28px !important;
+    min-height: 28px !important;
+    padding: 0 !important;
+    margin: 0 2px !important;
+    border: 0 !important;
+    border-radius: var(--dsw-radius-sm, 8px) !important;
+    background: transparent !important;
+    color: var(--dsw-alias-label-secondary, var(--dms-text-2)) !important;
+  }
+  .dms-right-menu svg { width: 16px !important; height: 16px !important; }
+  /* Only the plugin-injected .dms-right-menu is shown. The host's own expand
+     button can render on either side of "..." for one frame during startup;
+     hide it from CSS immediately so the two never flash together. */
+  [data-sidebar-right-expand] {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+

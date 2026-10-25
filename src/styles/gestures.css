@@ -1,0 +1,22 @@
+  /* ---------- drawer drag (direct compositor transforms) ------------------ */
+  html.dms-dragging-left [class*="_centerCol"],
+  html.dms-dragging-right [class*="_centerCol"],
+  html.dms-drag-close-left [class*="_centerCol"],
+  html.dms-drag-close-right [class*="_centerCol"] { transition: none !important; }
+  html.dms-dragging-left [class*="_frame"]:not([data-sidebar-collapsed]) > [class*="_sidebarCol"],
+  html.dms-drag-close-left [class*="_frame"]:not([data-sidebar-collapsed]) > [class*="_sidebarCol"],
+  html.dms-dragging-right [class*="_frame"] > [class*="_rightbarCol"],
+  html.dms-drag-close-right [class*="_frame"] > [class*="_rightbarCol"] {
+    animation: none !important;
+    transition: none !important;
+    will-change: transform !important;
+    backface-visibility: hidden !important;
+  }
+
+  /* hover-only message actions stay reachable on touch; sidebar rows open theirs on long-press */
+  [class*="_message"] [class*="_actions"],
+  [class*="_message"] [class*="_actionBar"] {
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+

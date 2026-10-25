@@ -1,0 +1,15 @@
+  /* ---------- frame: one viewport, status bar clear ------------------------ */
+  html body [class*="_frame"] {
+    grid-template-columns: 0 minmax(0, 1fr) 0 !important;
+    background: var(--dms-bg) !important;
+    box-sizing: border-box !important;
+    padding-top: env(safe-area-inset-top, 0px) !important;
+  }
+  [class*="_centerCol"] { grid-column: 2 !important; background: var(--dms-bg) !important; }
+  [class*="_frame"] > [class*="_sidebarCol"] { background: var(--dms-bg) !important; }
+  [class*="_rightbarCol"] { grid-column: 3 !important; }
+  [class*="_bottomRow"],
+  [class*="_composerStack"], [class*="_composerHero"],
+  [class*="_heroWorkspaceRow"], [class*="_heroOptions"] { background: transparent !important; }
+  [class*="_handle"] { display: none !important; }
+

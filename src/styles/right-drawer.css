@@ -1,0 +1,82 @@
+  /* ---------- right drawer ------------------------------------------------ */
+  [class*="_frame"] > [class*="_rightbarCol"] {
+    --dsh-sidebar-width: var(--dms-drawer-w) !important;
+    display: block !important;
+    position: fixed !important;
+    top: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: var(--dms-drawer-w) !important;
+    max-width: var(--dms-drawer-w) !important;
+    height: 100% !important;
+    z-index: 90 !important;
+    background: var(--dms-bg) !important;
+    border-radius: 0 !important;
+    box-shadow: -10px 0 28px rgba(15, 23, 42, 0.18) !important;
+    transform: translateX(100%) !important;
+    transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+    box-sizing: border-box !important;
+    padding-top: env(safe-area-inset-top, 0px) !important;
+    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+    overflow: hidden !important;
+  }
+  html.dms-right-open [class*="_frame"] > [class*="_rightbarCol"] {
+    transform: translateX(0) !important;
+    box-shadow: -10px 0 28px rgba(15, 23, 42, 0.18) !important;
+  }
+  [class*="_rightbarCol"] > * { width: 100% !important; height: 100% !important; }
+  [class*="_rightbarCol"] [class*="_panel"],
+  [class*="_rightbarCol"] [class*="_session"] {
+    width: 100% !important;
+    max-width: none !important;
+    left: 0 !important;
+    right: auto !important;
+    transform: none !important;
+    background: var(--dms-bg) !important;
+  }
+  [class*="_rightbarCol"] [class*="_tabBody"] { width: 100% !important; }
+
+  /* 任务 28：宿主右栏面板在 preload 后保持 collapsed（宿主 state 不再改动），
+     面板内容（含宿主自己的 chrome [全屏][收起] 按钮）由插件 CSS 放出并随面板移动。 */
+  html.dms-right-open [data-sidebar-right-session] [data-dockkit-host=dock],
+  html.dms-right-open [data-sidebar-right-session] [data-dockkit-empty],
+  html.dms-right-open [data-sidebar-right-session] [data-dockkit-divider] {
+    transform: none !important;
+    visibility: visible !important;
+    transition: none !important;
+  }
+  html.dms-preload-right [data-sidebar-right-panel],
+  html.dms-right-open [data-sidebar-right-panel] {
+    width: 100% !important;
+    max-width: 100% !important;
+    --dsh-sidebar-width: var(--dms-drawer-w) !important;
+  }
+  html.dms-preload-right [data-sidebar-right-session] { pointer-events: none !important; }
+  /* 任务32：打开态强制可见/不透明/可点，覆盖宿主 aria-hidden 与 collapsed 视觉。 */
+  html.dms-right-open [data-sidebar-right-session],
+  html.dms-right-open [data-sidebar-right-session][aria-hidden="true"] {
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+  }
+  /* 宿主 chrome 图标按钮：沿用宿主官方样式（28×28/15px 图标），这里只保证可见可达。 */
+  html.dms-right-open [data-sidebar-right-session] [data-sidebar-right-mode],
+  html.dms-right-open [data-sidebar-right-session] [data-sidebar-right-toggle] {
+    display: inline-flex !important;
+    pointer-events: auto !important;
+  }
+
+  /* fullscreen right panel: host state is data-sidebar-right-panel="fullscreen";
+     sync() mirrors it to html.dms-right-full. The drawer covers the page and the
+     edge gestures are disabled in JS while this class is present. */
+    html.dms-right-full [class*="_frame"] > [class*="_rightbarCol"] {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    z-index: 95 !important;
+    box-shadow: -10px 0 28px rgba(15, 23, 42, 0.18) !important;
+    transform: translateX(0) !important;
+  }
+  html.dms-right-full [class*="_centerCol"],
+  html.dms-right-full.dms-right-open [class*="_centerCol"] { transform: none !important; }
+  html.dms-right-full .dms-scrim { display: none !important; }
+

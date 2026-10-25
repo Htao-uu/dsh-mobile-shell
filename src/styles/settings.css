@@ -1,0 +1,272 @@
+  /* ---------- settings ---------------------------------------------------- */
+  [data-shortcut-modal="settings"], [data-shortcut-modal="settings"] * { box-sizing: border-box !important; }
+  [data-shortcut-modal="settings"] {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    max-width: none !important;
+    height: 100% !important;
+    max-height: none !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    background: var(--dms-bg-soft) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    padding: calc(52px + env(safe-area-inset-top, 0px)) 0 0 !important;
+    overflow: hidden !important;
+  }
+  .dms-settings-chrome {
+    display: none;
+    position: fixed;
+    left: 0; right: 0; top: 0;
+    height: calc(52px + env(safe-area-inset-top, 0px));
+    padding-top: env(safe-area-inset-top, 0px);
+    box-sizing: border-box;
+    align-items: center;
+    justify-content: center;
+    background: var(--dms-bg);
+    border-bottom: 1px solid var(--dms-line);
+    z-index: 2147483000;
+  }
+  html.dms-settings-open .dms-settings-chrome { display: flex; }
+  .dms-settings-chrome .dms-settings-back {
+    position: absolute; left: 4px; top: 50%; transform: translateY(-50%);
+    width: 44px; height: 44px; border: 0; border-radius: 50%;
+    background: transparent; color: var(--dms-text);
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .dms-settings-chrome .dms-settings-back:active { background: var(--dms-surface-2); }
+  .dms-settings-chrome .dms-settings-back svg { width: 22px; height: 22px; }
+  .dms-settings-chrome .dms-settings-title {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 17px; font-weight: 600; color: var(--dms-text); line-height: 1;
+  }
+  .dms-settings-chrome .dms-settings-title svg { width: 19px; height: 19px; }
+
+  /* settings list page */
+  [data-shortcut-modal="settings"] > [class*="_nav"] {
+    display: flex !important; flex-direction: column !important;
+    width: 100% !important;
+    padding: 8px 12px calc(16px + env(safe-area-inset-bottom, 0px)) !important;
+    background: transparent !important;
+    border-bottom: 0 !important;
+    overflow: auto !important;
+  }
+  [data-shortcut-modal="settings"] > [class*="_nav"] [class*="_navTitle"] { display: none !important; }
+  [data-shortcut-modal="settings"] > [class*="_nav"] [class*="_navList"] {
+    display: flex !important; flex-direction: column !important;
+    width: 100% !important; gap: 0 !important;
+    overflow: hidden !important; padding: 0 !important;
+    background: var(--dms-surface) !important;
+    border-radius: 12px !important;
+  }
+  [data-shortcut-modal="settings"] > [class*="_nav"] [class*="_navCell"] {
+    width: 100% !important; height: 46px !important;
+    flex: 0 0 auto !important;
+    display: flex !important; flex-direction: row !important;
+    align-items: center !important; justify-content: flex-start !important;
+    gap: 10px !important;
+    padding: 0 12px !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    border-bottom: 1px solid var(--dms-line) !important;
+    color: var(--dms-text) !important;
+    font-size: 15px !important; font-weight: 400 !important;
+    border: 0 !important;
+    position: relative !important;
+    white-space: nowrap !important;
+  }
+  [data-shortcut-modal="settings"] > [class*="_nav"] [class*="_navCell"] svg {
+    width: 20px !important; height: 20px !important;
+    flex: 0 0 20px !important; color: var(--dms-text) !important;
+  }
+  [data-shortcut-modal="settings"] > [class*="_nav"] [class*="_navCell"]::after {
+    content: "\203A"; position: absolute; right: 12px;
+    font-size: 20px; line-height: 1; color: var(--dms-text-2);
+  }
+  [data-shortcut-modal="settings"] > [class*="_nav"] [class*="_navCell"][class*="_active"] {
+    background: transparent !important; color: var(--dms-text) !important; font-weight: 400 !important;
+  }
+  [data-shortcut-modal="settings"] > [class*="_nav"] [class*="_navCell"]:last-child { border-bottom: 0 !important; }
+
+  /* mode switches only touch direct children so nested dialogs stay usable */
+  html.dms-settings-list [data-shortcut-modal="settings"] > [class*="_content"] { display: none !important; }
+  html.dms-settings-section [data-shortcut-modal="settings"] > [class*="_nav"] { display: none !important; }
+  html.dms-settings-section [data-shortcut-modal="settings"] > [class*="_content"] {
+    display: flex !important; flex-direction: column !important;
+    flex: 1 1 auto !important; min-height: 0 !important; overflow: hidden !important;
+  }
+  html.dms-settings-section [data-shortcut-modal="settings"] > [class*="_content"] > [class*="_header"] { display: none !important; }
+  [data-shortcut-modal="settings"] > [class*="_content"] > [class*="_options"] {
+    flex: 1 1 auto !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding: 8px 12px calc(20px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  [data-shortcut-modal="settings"] > [class*="_content"] > [class*="_options"]::-webkit-scrollbar,
+  [data-shortcut-modal="settings"] > [class*="_nav"]::-webkit-scrollbar { width: 0 !important; height: 0 !important; }
+  [data-shortcut-modal="settings"] > [class*="_content"] > [class*="_options"] { scrollbar-width: none !important; }
+
+  [data-shortcut-modal="settings"] [class*="_section"] {
+    width: 100% !important;
+    background: var(--dms-surface) !important;
+    border-radius: 12px !important;
+    margin: 0 0 6px !important;
+    padding: 0 12px !important;
+    overflow: hidden !important;
+  }
+  [data-shortcut-modal="settings"] [class*="_section"] > * {
+    border-bottom: 1px solid var(--dms-line) !important;
+    padding: 10px 0 !important;
+  }
+  [data-shortcut-modal="settings"] [class*="_section"] > *:last-child { border-bottom: 0 !important; }
+  [data-shortcut-modal="settings"] [class*="_group"] { padding: 10px 0 !important; }
+  [data-shortcut-modal="settings"] [class*="_group"] [class*="_title"] {
+    font-size: 12.5px !important; color: var(--dms-text-2) !important; font-weight: 500 !important;
+    margin-bottom: 6px !important;
+  }
+  [data-shortcut-modal="settings"] [class*="_row"] {
+    display: flex !important; align-items: center !important; gap: 10px !important;
+    width: 100% !important; max-width: 100% !important; min-width: 0 !important;
+  }
+  [class*="_rowText"] { flex: 1 1 auto !important; min-width: 0 !important; align-items: flex-start !important; padding-right: 0 !important; }
+  [class*="_rowText"] [class*="_title"], [class*="_rowText"] [class*="_desc"] {
+    text-align: left !important; margin-left: 0 !important;
+    width: auto !important; max-width: 100% !important;
+  }
+  [class*="_rowText"] [class*="_desc"] { flex: 1 1 auto !important; align-self: stretch !important; width: 100% !important; }
+  [data-shortcut-modal="settings"] [class*="_title"] {
+    font-size: 14.5px !important; color: var(--dms-text) !important; font-weight: 500 !important;
+    text-align: left !important; white-space: normal !important;
+  }
+  body [data-shortcut-modal="settings"] [class*="_rowText"] { align-items: flex-start !important; }
+  body [data-shortcut-modal="settings"] [class*="_title"] { text-align: left !important; width: 100% !important; }
+  [class*="_desc"], [class*="_description"] {
+    font-size: 12px !important; color: var(--dms-text-2) !important;
+    margin-top: 2px !important; line-height: 1.4 !important;
+  }
+  [data-shortcut-modal="settings"] [class*="_selector"] {
+    flex: 0 0 auto !important;
+    width: auto !important;
+    max-width: 62% !important;
+    min-width: 0 !important;
+    height: 30px !important;
+    padding: 0 9px !important;
+    font-size: 12px !important;
+    display: inline-flex !important; align-items: center !important;
+    color: var(--dms-text-2) !important;
+    white-space: nowrap !important;
+  }
+  [data-shortcut-modal="settings"] [class*="_cubeRow"] { display: flex !important; flex-direction: row !important; gap: 8px !important; }
+  [data-shortcut-modal="settings"] [class*="_themeCube"] {
+    flex: 1 1 0 !important; min-width: 0 !important; width: auto !important;
+    white-space: nowrap !important;
+  }
+  [data-shortcut-modal="settings"] [class*="_themeCube"]:not([class*="_selected"]) {
+    background: transparent !important;
+  }
+
+  /* provider/model editor page */
+  [data-shortcut-modal="settings"] [class*="_editorActions"] {
+    display: flex !important; flex-wrap: wrap !important; gap: 8px !important;
+  }
+  [data-shortcut-modal="settings"] [class*="_modelRow"] {
+    display: flex !important; flex-wrap: wrap !important; gap: 8px !important;
+    width: 100% !important;
+  }
+  [data-shortcut-modal="settings"] [class*="_modelRow"] input {
+    flex: 1 1 110px !important; min-width: 0 !important;
+    font-size: 12px !important; padding: 0 6px !important;
+  }
+  [data-shortcut-modal="settings"] [class*="_modelRow"] [class*="_iconButton"] {
+    width: 24px !important; height: 24px !important; min-width: 24px !important; padding: 0 !important;
+  }
+  [data-shortcut-modal="settings"] [class*="_modelEntry"] { width: 100% !important; }
+  [data-shortcut-modal="settings"] [class*="_addModelButton"],
+  [data-shortcut-modal="settings"] [class*="_addButton"] {
+    width: auto !important; height: auto !important; min-width: 0 !important;
+    white-space: nowrap !important;
+  }
+  [data-shortcut-modal="settings"] [class*="_modelList"],
+  [data-shortcut-modal="settings"] [class*="_customizedBody"] { width: 100% !important; }
+
+  /* long model names wrap instead of clipping */
+  [role=menu] [role=menuitem], [class*="_modelItem"], [class*="_optionItem"] { white-space: normal !important; height: auto !important; min-height: 40px !important; }
+  [role=menu] [role=menuitem] [class*="_label"], [class*="_modelItem"] [class*="_label"] { white-space: normal !important; line-height: 1.35 !important; }
+
+  /* the host sidebar is kept mounted (preloaded) and pinned off-screen; opening slides it in */
+  html.dms-preload-left [class*="_frame"] > [class*="_sidebarCol"] {
+    /* Keep the host sidebar expanded and *under* the opaque page. It is fully
+       visible to the renderer (so plugins/sidebar content paint before the
+       first touch) but covered by centerCol; opening only raises its z-index.
+       Off-screen/opacity-0 preloads skipped paint and produced a white first frame. */
+    transform: none !important;
+    opacity: 1 !important;
+    z-index: 0 !important;
+    animation: none !important;
+    transition: none !important;
+    pointer-events: none !important;
+  }
+  html.dms-preload-left [class*="_centerCol"] {
+    position: relative !important;
+    z-index: 1 !important;
+    background: var(--dms-bg) !important;
+    /* Promote the page once at phone-layout time. The right drawer pushes this
+       layer; without a pre-existing compositor layer the first transform frame
+       re-rasterized a large conversation DOM and stalled mid-animation. */
+    will-change: transform !important;
+    backface-visibility: hidden !important;
+  }
+  html.dms-left-hide [class*="_frame"] > [class*="_sidebarCol"] {
+    transform: translateX(-100%) !important;
+    animation: none !important;
+    transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+  }
+  /* while a gesture mounts a drawer, pin it off-screen until our compositor frame lands */
+  html.dms-gesture-arming [class*="_frame"] > [class*="_sidebarCol"] {
+    animation: none !important;
+    transition: none !important;
+    transform: translateX(-100%) !important;
+    will-change: transform !important;
+  }
+  html.dms-gesture-arming-right [class*="_frame"] > [class*="_rightbarCol"] {
+    animation: none !important;
+    transition: none !important;
+    transform: translateX(100%) !important;
+    will-change: transform !important;
+  }
+  /* The preload rules keep the host sidebar under the page; while the drawer is
+     open it must come back above the pushed page. Overriding the combined state
+     (instead of removing dms-preload-left on open) avoids a class churn that
+     re-ran the host animation and flashed white on fast drawer switches. */
+  html.dms-preload-left.dms-left-open [class*="_frame"] > [class*="_sidebarCol"],
+  html.dms-left-open [class*="_frame"]:not([data-sidebar-collapsed]) > [class*="_sidebarCol"] {
+    z-index: 90 !important;
+    pointer-events: auto !important;
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+
+  /* Right drawer follows the left one: the host panel is preloaded and stays
+     mounted off-screen; opening/closing only moves it (state = plugin rightVisible). */
+  html.dms-preload-right [class*="_frame"] > [class*="_rightbarCol"] {
+    transform: translateX(100%) !important;
+    opacity: 1 !important;
+    z-index: 0 !important;
+    animation: none !important;
+    transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+    pointer-events: none !important;
+  }
+  html.dms-preload-right [class*="_centerCol"] {
+    position: relative !important;
+    z-index: 1 !important;
+    background: var(--dms-bg) !important;
+  }
+  html.dms-preload-right.dms-right-open [class*="_frame"] > [class*="_rightbarCol"],
+  html.dms-right-open [class*="_frame"] > [class*="_rightbarCol"] {
+    transform: translateX(0) !important;
+    pointer-events: auto !important;
+    z-index: 90 !important;
+  }
+

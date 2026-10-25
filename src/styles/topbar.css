@@ -1,0 +1,53 @@
+  /* ---------- top bar (host header, restyled) ----------------------------- */
+  [class*="_centerCol"] header.dms-topbar {
+    height: var(--dms-topbar) !important;
+    min-height: var(--dms-topbar) !important;
+    padding: 0 12px !important;
+    background: var(--dms-bg) !important;
+    border-bottom: none !important;
+    box-sizing: border-box !important;
+    align-items: center !important;
+    position: relative !important;
+    z-index: 30 !important;
+  }
+  [class*="_centerCol"] header.dms-topbar [class*="_headerLeading"] {
+    display: flex !important; align-items: center !important;
+    gap: 4px !important; min-width: 0 !important; height: 100%;
+  }
+  [class*="_centerCol"] header.dms-topbar [class*="_headerCorner"] {
+    display: flex !important; align-items: center !important; gap: 4px !important;
+    position: relative !important; right: auto !important; top: auto !important;
+    height: 100%;
+  }  [class*="_centerCol"] header.dms-topbar [data-conversation-header-leading],
+  [class*="_centerCol"] header.dms-topbar [data-conversation-header-corner] {
+    gap: 4px !important; align-items: center !important;
+  }
+  [class*="_centerCol"] header.dms-topbar [class*="_titleRow"] { align-items: center !important; min-height: 100%; }
+  [class*="_centerCol"] header.dms-topbar[class*="headerBlank"] .dms-plus { display: none !important; }
+
+  .dms-menu { position: relative !important; z-index: 6 !important; }
+  /* 0.6.18: all injected header buttons copy the DSH host icon-button metrics
+     (ui-sidebar HeaderLeadingControls): 28px square, radius-sm, label-secondary,
+     16px glyph, transparent + interactive hover. No custom sizes/colors. */
+  /* 0.6.18 修正：所有注入按钮统一 DSH 宿主官方图标按钮规格
+     —— 28×28、透明底、16px 图标、按下浅色反馈（顶部栏与右栏共用同一套）。 */
+  .dms-iconbtn {
+    width: 28px; height: 28px; flex: 0 0 28px;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: 0; border-radius: var(--dsw-radius-sm, 8px); padding: 0; margin: 0;
+    background: transparent; color: var(--dsw-alias-label-secondary, var(--dms-text-2));
+    -webkit-tap-highlight-color: transparent;
+    cursor: pointer;
+  }
+  .dms-iconbtn:active { background: var(--dsw-alias-interactive-bg-hover, var(--dms-surface-2)) !important; }
+  .dms-iconbtn svg { display: block; width: 16px !important; height: 16px !important; }
+  /* Do not inflate the host's own header buttons: keep the official 28px/16px so
+     the injected icons and the host actions share one compact row. */
+  [class*="_centerCol"] header.dms-topbar [class*="_button_"],
+  [class*="_centerCol"] header.dms-topbar [class*="_iconButton"] {
+    width: 28px !important; height: 28px !important; min-width: 28px !important;
+    border-radius: var(--dsw-radius-sm, 8px) !important;
+    color: var(--dsw-alias-label-secondary, var(--dms-text-2)) !important;
+  }
+  [class*="_centerCol"] header.dms-topbar [class*="_button_"] svg,
+  [class*="_centerCol"] header.dms-topbar [class*="_iconButton"] svg { width: 16px !important; height: 16px !important; }

@@ -1,0 +1,62 @@
+  /* ---------- composer ---------------------------------------------------- */
+  [data-composer-seat] { background: var(--dms-bg) !important; }
+  [data-composer-card] {
+    border-radius: var(--dms-radius-lg) !important;
+    background: var(--dms-surface) !important;
+    border: 0 !important;
+    box-shadow: var(--dms-shadow-card) !important;
+    padding: 12px 12px 10px !important;
+    margin: 0 12px calc(8px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  [data-composer-input] { font-size: 16px !important; line-height: 1.45 !important; color: var(--dms-text) !important; }
+  [data-composer-placeholder] { font-size: 16px !important; color: var(--dms-text-2) !important; }
+  [data-composer-card] [class*="_row"] { gap: 6px !important; }
+  [data-composer-card] [class*="_add"] {
+    width: 36px !important; height: 36px !important; min-width: 36px !important;
+    border-radius: 50% !important; background: var(--dms-surface-2) !important;
+    color: var(--dms-text) !important; border: 0 !important;
+  }
+  [data-composer-card] [class*="_add"] svg { width: 18px !important; height: 18px !important; }
+  [data-composer-card] [class*="_primary"] {
+    width: 38px !important; height: 38px !important; min-width: 38px !important;
+    border-radius: 50% !important;
+    background: var(--dms-blue) !important;
+    color: #fff !important;
+    border: 0 !important;
+    box-shadow: 0 4px 12px rgba(66, 110, 254, 0.32) !important;
+    transition: background 0.16s ease, transform 0.12s ease !important;
+  }
+  [data-composer-card] [class*="_primary"]:disabled,
+  [data-composer-card] [class*="_primary"][aria-disabled="true"] {
+    background: var(--dms-surface-2) !important;
+    color: var(--dms-text-2) !important;
+    box-shadow: none !important;
+  }
+  [data-composer-card] [class*="_primary"] svg { width: 19px !important; height: 19px !important; }
+  [data-composer-card] [class*="_primary"]:active { transform: scale(0.94); }
+
+  /* DSH-style round icon controls: permission + model, no labels/chevrons */
+  [class*="_modes"] button, [class*="_standardControls"] button {
+    width: 36px !important; height: 36px !important; min-width: 36px !important;
+    padding: 0 !important;
+    border-radius: 50% !important;
+    background: var(--dms-surface-2) !important;
+    border: 0 !important;
+    color: var(--dms-text) !important;
+    font-size: 0 !important;
+    display: inline-flex !important; align-items: center !important; justify-content: center !important;
+    overflow: hidden !important;
+  }
+  [class*="_modes"] button [class*="_triggerLabel"],
+  [class*="_modes"] button [class*="_chevron"],
+  [class*="_standardControls"] button [class*="_triggerLabel"],
+  [class*="_standardControls"] button [class*="_chevron"] { display: none !important; }
+  [class*="_modes"] button svg, [class*="_standardControls"] button svg {
+    display: block !important;
+    width: 18px !important; height: 18px !important; color: var(--dms-text) !important;
+  }
+  [class*="_standardControls"] button svg:last-child { display: none !important; }
+  .dms-menu svg { transform: scaleX(-1); }
+  [class*="_notice"] { color: var(--dms-text-2) !important; background: transparent !important; }
+
+  /* conversation footer stats: keep the three parts on one compact line */
