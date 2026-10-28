@@ -5,6 +5,25 @@
 
 > 本项目是非官方 DSH 插件，与 DeepSeek 无隶属关系。
 
+## 推荐搭配 dsh-android / Recommended with dsh-android
+
+**搭配 [dsh-android](https://github.com/Htao-uu/dsh-android) 使用效果最好。**
+dsh-mobile-shell 单独安装在 DSH Web UI 里也能工作，但只负责移动端壳层；只有配合 dsh-android，
+才能同时获得原生相机/相册、最近照片、全屏 WebView、Android 返回键、内置运行时和完整的设置页适配。
+
+- App 与最新 APK：https://github.com/Htao-uu/dsh-android/releases/tag/v1.4.0
+- App 源码：https://github.com/Htao-uu/dsh-android
+- 推荐组合：**dsh-android 1.4.0 + dsh-mobile-shell 0.7.5+**
+
+**Best paired with [dsh-android](https://github.com/Htao-uu/dsh-android).**
+The plugin also works as a standalone DSH Web UI plugin, but the native camera/gallery,
+recent-photo strip, full-screen WebView, Android back handling, embedded runtime and the complete
+settings adaptation come from the app.
+
+- Latest APK: https://github.com/Htao-uu/dsh-android/releases/tag/v1.4.0
+- App source: https://github.com/Htao-uu/dsh-android
+- Recommended bundle: **dsh-android 1.4.0 + dsh-mobile-shell 0.7.5+**
+
 ## Overview / 概述
 
 dsh-mobile-shell 是一个纯客户端的 DSH Web UI 插件：在窄屏（≤1023px）下把宿主界面整理成接近官方 App 的手机体验，桌面端不做任何改动。
