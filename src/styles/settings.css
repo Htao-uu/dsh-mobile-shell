@@ -15,6 +15,34 @@
     padding: calc(52px + env(safe-area-inset-top, 0px)) 0 0 !important;
     overflow: hidden !important;
   }
+  /* DSH 0.2.2 settings DOM (no _content wrapper):
+     * panel > navTitle, nav, header(actions + close), options.
+     * The native header belongs only to the right-hand section; hide it in
+     * both list and section mode. The custom chrome keeps the back button.
+     * navTitle stays in the accessibility tree for aria-labelledby, but not
+     * visually rendered (the native top bar already says 设置). */
+  html.dms-settings-list [data-shortcut-modal="settings"] > [class*="_options"] {
+    display: none !important;
+  }
+  html.dms-settings-list [data-shortcut-modal="settings"] > [class*="_header"],
+  html.dms-settings-section [data-shortcut-modal="settings"] > [class*="_header"] {
+    display: none !important;
+  }
+  html.dms-settings-section [data-shortcut-modal="settings"] > [class*="_nav"] {
+    display: none !important;
+  }
+  [data-shortcut-modal="settings"] > [class*="_navTitle"] {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    margin: -1px !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    clip: rect(0 0 0 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+  }
+
   .dms-settings-chrome {
     display: none;
     position: fixed;
