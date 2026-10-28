@@ -8,7 +8,7 @@
 ## 推荐搭配 dsh-android / Recommended with dsh-android
 
 **搭配 [dsh-android](https://github.com/Htao-uu/dsh-android) 使用效果最好。**
-dsh-mobile-shell 单独安装在 DSH Web UI 里也能工作，但只负责移动端壳层；只有配合 dsh-android，
+dsh-mobile-shell 单独安装在 DSH Web UI 里也能工作 **(可能存在BUG,不建议单独安装)** ，但只负责移动端壳层；只有配合 dsh-android，
 才能同时获得原生相机/相册、最近照片、全屏 WebView、Android 返回键、内置运行时和完整的设置页适配。
 
 - App 与最新 APK：https://github.com/Htao-uu/dsh-android/releases/tag/v1.4.0
