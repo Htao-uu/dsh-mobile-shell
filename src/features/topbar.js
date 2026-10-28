@@ -1,7 +1,7 @@
 // dsh-mobile-shell: split source (built into lib/client.js by scripts/build.mjs)
 import { state } from "../core/state.js";
 import { $, isPhone, makeButton } from "../core/dom.js";
-import { closeRight, hostRightOpen, openRight, rightExpandTrigger, rightPanelContentReady, showRightLoading, startRightOpenWait, toggleRightFullscreen } from "../features/right-drawer.js";
+import { closeRight, openRight, rightExpandTrigger, toggleRightFullscreen } from "../features/right-drawer.js";
 import { ensureSidebarMounted, toggleLeft } from "../features/left-drawer.js";
 
 // The hamburger button lives inside the host header leading slot so it is part
@@ -184,22 +184,17 @@ function installRightInterceptors() {
       return;
     }
     if (expanded !== null) {
-      // 任务34：先同步给出可见反馈（状态+class+加载占位），再做任何内容检查。
       state.rightVisible = true;
-      state.rightActivityAt = performance.now();
-      state.rightFullIntent = false;
       document.documentElement.classList.add("dms-right-open");
-      showRightLoading();
       try { openRight(); } catch (error) { /* openRight 已给出基础反馈 */ }
       return;
     }
     try {
       openRight();
     } catch (error) {
-      // 保证点击永远不会“无反应”：至少打开抽屉/加载占位。
+      // 保证点击永远不会“无反应”：至少打开抽屉。
       state.rightVisible = true;
       document.documentElement.classList.add("dms-right-open");
-      startRightOpenWait();
     }
   }, true);
 

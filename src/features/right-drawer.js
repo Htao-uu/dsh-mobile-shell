@@ -54,45 +54,6 @@ function rightPanelContentReady() {
   return body.querySelector("button, [class*='_entry'], [class*='_guide'], img, svg, input, textarea, iframe, canvas, video, [contenteditable='true']") !== null;
 }
 
-function rightLoadingElRef() {
-  if (state.rightLoadingEl === null) {
-    state.rightLoadingEl = document.createElement("div");
-    state.rightLoadingEl.className = "dms-right-loading";
-    state.rightLoadingEl.setAttribute("aria-hidden", "true");
-    state.rightLoadingEl.innerHTML = '<div class="dms-right-loading-spinner"></div><div class="dms-right-loading-text">正在加载右侧栏…</div>';
-    document.body.appendChild(state.rightLoadingEl);
-  }
-  return state.rightLoadingEl;
-}
-
-function showRightLoading() {
-  // Intentionally no-op: a plugin-owned spinner cannot know when the host's
-  // tab content is really done, so it could hang forever. The host panel is
-  // preloaded before opening; never cover it with a fake loading state.
-}
-
-function hideRightLoading() {
-  if (state.rightLoadingEl !== null) { state.rightLoadingEl.hidden = true; state.rightLoadingEl.setAttribute("aria-hidden", "true"); }
-}
-
-function stopRightOpenWait(hideLoader) {
-  if (state.rightOpenWaitTimer !== 0) { clearInterval(state.rightOpenWaitTimer); state.rightOpenWaitTimer = 0; }
-  if (hideLoader === true) hideRightLoading();
-}
-
-function startRightOpenWait() {
-  // Preventive behaviour: do not create a loading cover at all. The host panel
-  // is mounted/preloaded before open; if its tab body is empty that is the
-  // host's own state, and the drawer must remain interactive instead of
-  // showing an unresolvable spinner. There is no polling and no timeout path.
-  stopRightOpenWait(true);
-  state.rightWaitFallbackTried = false;
-  state.rightWaitTimedOut = false;
-  state.rightWaitStartedAt = 0;
-  document.documentElement.removeAttribute("data-dms-right-wait-timeout");
-  rlog("open-without-loader");
-}
-
 const clickHost = (el) => {
   if (el === null) return false;
   state.rightPreloadClick = true;
@@ -226,8 +187,6 @@ function lockRightPanel() {
 
 function openRight() {
   state.rightVisible = true;
-  state.rightActivityAt = performance.now();
-  state.rightFullIntent = false;
   // A user open cancels the background preload: its 2.6s timeout must not
   // toggle the host panel shut after this point.
   preloadGeneration += 1;
@@ -240,20 +199,14 @@ function openRight() {
   document.documentElement.classList.add("dms-right-open");
   unlockRightPanel();
   rlog("open", "preloaded=" + document.documentElement.hasAttribute("data-dms-right-preloaded"));
-  // Always open synchronously; no loading gate to get stuck.
-  startRightOpenWait();
 }
 
 function closeRight() {
   state.rightVisible = false;
-  state.rightFullIntent = false;
-  state.rightActivityAt = performance.now();
   // Let the gesture layer cancel any in-flight spring/inline transform before
   // the close classes run; otherwise the page can stay pushed and reveal the
   // preloaded left sidebar.
   emit("drawer-close", "right");
-  stopRightOpenWait(true);
-  state.rightWaitTimedOut = false;
   lockRightPanel();
   const root = document.documentElement;
   root.removeAttribute("data-dms-right-wait-timeout");
@@ -261,19 +214,13 @@ function closeRight() {
   root.classList.remove("dms-right-open");
   root.classList.add("dms-preload-right");
   restoreLeftAfterShift();
-  if (state.rightFallbackOpen) {
-    state.rightFallbackOpen = false;
-    clickHost($("[data-sidebar-right-toggle]"));
-  }
 }
 
 function toggleRightFullscreen() {
   const root = document.documentElement;
   if (root.classList.contains("dms-right-full")) {
-    state.rightFullIntent = false;
     root.classList.remove("dms-right-full");
   } else {
-    state.rightFullIntent = true;
     state.rightVisible = true;
     root.classList.remove("dms-preload-right");
     root.classList.add("dms-right-open");
@@ -331,9 +278,8 @@ function rightExpandTrigger(node) {
 }
 
 function exitRightFullscreen(closeDrawer) {
-  state.rightFullIntent = false;
 document.documentElement.classList.remove("dms-right-full");
 if (closeDrawer === true) closeRight();
 }
 
-export { rightPanelEl, rightSessionId, rightPanelHasTab, rightTabBodyEl, rightPanelContentReady, rightLoadingElRef, showRightLoading, hideRightLoading, stopRightOpenWait, startRightOpenWait, clickHost, preloadRight, openRight, closeRight, toggleRightFullscreen, syncRightChrome, hostRightOpen, rightOpen, rightExpandTriggerInHeader, rightExpandTrigger, exitRightFullscreen, unlockRightPanel, lockRightPanel };
+export { rightPanelEl, rightSessionId, rightPanelHasTab, rightTabBodyEl, rightPanelContentReady, clickHost, preloadRight, openRight, closeRight, toggleRightFullscreen, syncRightChrome, hostRightOpen, rightOpen, rightExpandTriggerInHeader, rightExpandTrigger, exitRightFullscreen, unlockRightPanel, lockRightPanel };

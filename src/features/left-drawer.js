@@ -117,7 +117,6 @@ function preloadSidebar() {
 // still committing. Mount completion is observed by requestMount(); sync() and
 // the MutationObserver cover later host re-renders.
 function repairLeftHost() {
-  if (state.leftRepairTimer !== 0) { clearTimeout(state.leftRepairTimer); state.leftRepairTimer = 0; }
   if (!state.leftVisible) return;
   const root = document.documentElement;
   root.classList.remove("dms-left-hide");
@@ -175,7 +174,6 @@ function closeLeftVisual(animated) {
   if (!state.leftVisible) return;
   state.leftVisible = false;
   dlog("close-visual", "animated=" + animated);
-  if (state.leftRepairTimer !== 0) { clearTimeout(state.leftRepairTimer); state.leftRepairTimer = 0; }
   // Drop the inline overrides first so the CSS close transition/class can win
   // and the preloaded sidebar falls back under the page.
   clearDrawerInline();

@@ -21,11 +21,13 @@ function installLongPress() {
         session.querySelector('[class*="_rowActions"] button');
       if (overflow !== null) { overflow.click(); return; }
     }
+    /*
     const row = target.closest('li, [class*="_row"], [class*="_entry"], [class*="_card"]');
     if (row !== null) {
       const hidden = row.querySelector('[class*="_rowActions"] button, [class*="_actions"] button, [class*="_overflow"], button[aria-haspopup="menu"]');
       if (hidden !== null) { hidden.click(); return; }
     }
+    */
     const msg = target.closest('[class*="_message"]');
     if (msg !== null) {
       msg.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: cx, clientY: cy }));

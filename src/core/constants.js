@@ -1,7 +1,7 @@
 // dsh-mobile-shell: split source (built into lib/client.js by scripts/build.mjs)
 import { $, $$ } from "./dom.js";
 
-const MEDIA = "(max-width: 1023px)";
+const MEDIA = "(max-width: 10230px)";//临时测试值
 
 const TRIGGER = 56;
 

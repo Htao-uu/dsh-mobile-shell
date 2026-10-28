@@ -3,7 +3,7 @@ import { state } from "./core/state.js";
 import { $, $$, frame, hostLeftOpen, isPhone, normalizeSeparators, settingsPanel } from "./core/dom.js";
 import { styleOnce } from "./core/style.js";
 import { forceMountSidebar, repairLeftHost, toggleLeft, leftOpen } from "./features/left-drawer.js";
-import { closeRight, openRight, preloadRight, rightPanelContentReady, stopRightOpenWait, syncRightChrome, unlockRightPanel } from "./features/right-drawer.js";
+import { closeRight, openRight, preloadRight, syncRightChrome, unlockRightPanel } from "./features/right-drawer.js";
 import { ensureTopButtons, installTopbarRepair, installRightInterceptors } from "./features/topbar.js";
 import { ensureSettings, installSettingsWatcher } from "./features/settings.js";
 import { installGestures, installDrawerAutoClose } from "./features/gestures.js";
@@ -28,7 +28,6 @@ function sync() {
   // Also hide a loading cover that timed out and whose content appeared later;
   // the observer runs sync() after host DOM mutations.
   if (state.rightVisible) unlockRightPanel();
-  if (state.rightVisible && rightPanelContentReady()) stopRightOpenWait(true);
   const panel = settingsPanel();
   root.classList.toggle("dms-settings-open", panel !== null);
   if (panel !== null) ensureSettings(panel);
@@ -147,7 +146,7 @@ function apply(ctx) {
     }
     for (const tag of $$('style[data-dsh-mobile-shell="styles"]')) tag.remove();
     for (const el of $$(".dms-scrim")) el.remove();
-    for (const el of $$(".dms-attach-sheet, .dms-attach-backdrop, .dms-right-loading")) el.remove();
+    for (const el of $$(".dms-attach-sheet, .dms-attach-backdrop")) el.remove();
   }, "dsh-mobile-shell: teardown");
 }
 
