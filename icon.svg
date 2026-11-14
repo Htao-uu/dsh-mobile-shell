@@ -1,0 +1,27 @@
+<svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="dms-icon-bg" x1="3" y1="2" x2="34" y2="36" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1E40AF"/>
+      <stop offset="0.52" stop-color="#2563EB"/>
+      <stop offset="1" stop-color="#2F6BFF"/>
+    </linearGradient>
+    <linearGradient id="dms-icon-screen" x1="12" y1="9" x2="24" y2="27" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F172A"/>
+      <stop offset="1" stop-color="#172B5C"/>
+    </linearGradient>
+    <clipPath id="dms-icon-screen-clip">
+      <rect x="11.8" y="8.8" width="12.4" height="18.4" rx="2.5"/>
+    </clipPath>
+  </defs>
+  <rect width="36" height="36" rx="9" fill="url(#dms-icon-bg)"/>
+  <rect x="9.5" y="5.3" width="17" height="25.4" rx="4.5" fill="#FFFFFF"/>
+  <rect x="11.8" y="8.8" width="12.4" height="18.4" rx="2.5" fill="url(#dms-icon-screen)"/>
+  <g clip-path="url(#dms-icon-screen-clip)">
+    <rect x="11.8" y="8.8" width="4.9" height="18.4" fill="#FFFFFF" fill-opacity="0.94"/>
+    <path d="M14 14.1h1.8M14 17h1.8M14 19.9h1.8" stroke="#2563EB" stroke-width="1.15" stroke-linecap="round"/>
+    <rect x="18.6" y="13.2" width="3.4" height="1.45" rx="0.725" fill="#FFFFFF" fill-opacity="0.95"/>
+    <rect x="18.6" y="16.8" width="3.4" height="1.45" rx="0.725" fill="#FFFFFF" fill-opacity="0.6"/>
+    <rect x="18.6" y="20.4" width="2.4" height="1.45" rx="0.725" fill="#FFFFFF" fill-opacity="0.4"/>
+  </g>
+  <rect x="15.7" y="27.1" width="4.6" height="1.1" rx="0.55" fill="#2563EB" fill-opacity="0.45"/>
+</svg>

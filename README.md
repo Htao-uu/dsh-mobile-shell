@@ -8,12 +8,12 @@
 ## 推荐搭配 dsh-android / Recommended with dsh-android
 
 **搭配 [dsh-android](https://github.com/Htao-uu/dsh-android) 使用效果最好。**
-dsh-mobile-shell 单独安装在 DSH Web UI 里也能工作 **(可能存在BUG,不建议单独安装)** ，但只负责移动端壳层；只有配合 dsh-android，
+dsh-mobile-shell 单独安装在 DSH Web UI 里也能工作，但只负责移动端壳层；只有配合 dsh-android，
 才能同时获得原生相机/相册、最近照片、全屏 WebView、Android 返回键、内置运行时和完整的设置页适配。
 
 - App 与最新 APK：https://github.com/Htao-uu/dsh-android/releases/tag/v1.4.0
 - App 源码：https://github.com/Htao-uu/dsh-android
-- 推荐组合：**dsh-android 1.4.0 + dsh-mobile-shell 0.7.5+**
+- 推荐组合：**dsh-android 1.4.0 + dsh-mobile-shell 0.8.0+**
 
 **Best paired with [dsh-android](https://github.com/Htao-uu/dsh-android).**
 The plugin also works as a standalone DSH Web UI plugin, but the native camera/gallery,
@@ -22,7 +22,7 @@ settings adaptation come from the app.
 
 - Latest APK: https://github.com/Htao-uu/dsh-android/releases/tag/v1.4.0
 - App source: https://github.com/Htao-uu/dsh-android
-- Recommended bundle: **dsh-android 1.4.0 + dsh-mobile-shell 0.7.5+**
+- Recommended bundle: **dsh-android 1.4.0 + dsh-mobile-shell 0.8.0+**
 
 ## Overview / 概述
 
@@ -46,7 +46,7 @@ dsh-mobile-shell 是一个纯客户端的 DSH Web UI 插件：在窄屏（≤102
 - **附件弹层**：composer 的「+」打开底部附件弹层（拍照 / 相册 / 文件，系统选择器），可选接入原生桥显示「最近照片」；桥不存在时该区域自动隐藏。
 - **设置页**：全屏设置面板、返回箭头、紧凑分组列表。
 - **返回栈**：Android 返回键依次关闭 附件弹层 → 设置 → 右抽屉 → 左抽屉，再交给宿主默认行为。
-- **桌面端零影响**：≥1024px 时插件不生效。(之前测试时调成了≥10240忘记改回去了,不过在我的APP上没坏影响)
+- **桌面端零影响**：≥1024px 时插件不生效。
 
 ## Install / 安装
 
@@ -74,15 +74,6 @@ dsh plugin --profile <profile> add link:/path/to/dsh-mobile-shell
 ```sh
 npm run build
 ```
-
-浏览器 bundle 提交在 `lib/client.js`；修改 `src/` 后重新构建。若运行环境没有 pnpm，可把仓库复制到
-`<DSH_HOME>/profiles/<profile>/node_modules/dsh-mobile-shell` 并重启一次。
-
-更多文档：
-
-- [docs/WORKFLOW.md](docs/WORKFLOW.md) — 开发、安装与验收流程
-- [docs/DESIGN.md](docs/DESIGN.md) — 设计 token、壳层映射与交互约束
-- [docs/GLOSSARY.md](docs/GLOSSARY.md) — 中英术语表
 
 ## License / 许可
 

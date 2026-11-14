@@ -2,7 +2,7 @@
 /**
  * Build the single-file browser bundle DSH serves from lib/client.js.
  *
- * Source layout: src/loader.js is the entry, src/index.js assembles the plugin,
+ * Source layout: src/loader.ts is the entry, src/index.ts assembles the plugin,
  * src/features/** implement behaviour and src/styles/** are plain CSS files.
  * esbuild inlines each CSS file through the text loader (loader '.css': 'text')
  * and emits exactly one IIFE file - the DSH client only fetches one file per
@@ -16,7 +16,7 @@ import { createRequire } from 'node:module'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const root = join(here, '..')
-const entry = join(root, 'src', 'loader.js')
+const entry = join(root, 'src', 'loader.ts')
 const outfile = join(root, 'lib', 'client.js')
 
 const options = {
@@ -29,8 +29,12 @@ const options = {
   loader: { '.css': 'text' },
   define: { 'process.env.NODE_ENV': '"production"' },
   globalName: 'DMS',
-  banner: { js: "window.__ModuleLoader__.load({\n  id: \"dsh-mobile-shell\",\n  factory: (require) => {\n    var module = { exports: {} };\n    var exports = module.exports;\n" },
-  footer: { js: "    exports.apply = DMS.apply;\n    exports.inject = DMS.INJECT.slice();\n    return module.exports;\n  }\n});\n" },
+  banner: {
+    js: 'window.__ModuleLoader__.load({\n  id: "dsh-mobile-shell",\n  factory: (require) => {\n    let module = { exports: {} };\n    let exports = module.exports;\n',
+  },
+  footer: {
+    js: '    exports.apply = DMS.apply;\n    exports.inject = DMS.INJECT.slice();\n    return module.exports;\n  }\n});\n',
+  },
   logLevel: 'silent',
 }
 
@@ -42,10 +46,18 @@ async function buildWithCli() {
   try {
     const pkgPath = require.resolve(platformPkg + '/package.json')
     const pkg = JSON.parse(await readFile(pkgPath, 'utf8'))
-    bin = join(dirname(pkgPath), process.platform === 'win32' ? 'esbuild.exe' : join('bin', 'esbuild'))
+    bin = join(
+      dirname(pkgPath),
+      process.platform === 'win32' ? 'esbuild.exe' : join('bin', 'esbuild'),
+    )
     if (pkg.version === undefined) throw new Error('bad platform package')
   } catch (error) {
-    bin = join(root, 'node_modules', '.bin', process.platform === 'win32' ? 'esbuild.cmd' : 'esbuild')
+    bin = join(
+      root,
+      'node_modules',
+      '.bin',
+      process.platform === 'win32' ? 'esbuild.cmd' : 'esbuild',
+    )
   }
   await mkdir(join(root, 'lib'), { recursive: true })
   const args = [
@@ -54,8 +66,10 @@ async function buildWithCli() {
     '--format=iife',
     '--target=es2020',
     '--global-name=DMS',
-    '--banner:js=' + "window.__ModuleLoader__.load({\n  id: \"dsh-mobile-shell\",\n  factory: (require) => {\n    var module = { exports: {} };\n    var exports = module.exports;\n",
-    '--footer:js=' + "    exports.apply = DMS.apply;\n    exports.inject = DMS.INJECT.slice();\n    return module.exports;\n  }\n});\n",
+    '--banner:js=' +
+      'window.__ModuleLoader__.load({\n  id: "dsh-mobile-shell",\n  factory: (require) => {\n    let module = { exports: {} };\n    let exports = module.exports;\n',
+    '--footer:js=' +
+      '    exports.apply = DMS.apply;\n    exports.inject = DMS.INJECT.slice();\n    return module.exports;\n  }\n});\n',
     '--minify=false',
     '--loader:.css=text',
     '--define:process.env.NODE_ENV="production"',
