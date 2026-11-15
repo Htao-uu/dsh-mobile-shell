@@ -1,6 +1,5 @@
 // dsh-mobile-shell: split source (built into lib/client.js by scripts/build.mjs)
-import { ICONS, MEDIA } from './constants.js'
-import type { ButtonIconKind } from './constants.js'
+import { MEDIA } from './constants.js'
 
 /**
  * querySelector with the root/label conventions the plugin uses everywhere.
@@ -27,40 +26,6 @@ const settingsPanel = (): HTMLElement | null => $('[data-shortcut-modal="setting
 const hostLeftOpen = (): boolean => {
   const f = frame()
   return f !== null && !f.hasAttribute('data-sidebar-collapsed')
-}
-
-function cloneIcon(selector: string): string {
-  const host = $(selector)
-  const svg = host === null ? null : host.querySelector('svg')
-  return svg === null ? '' : svg.outerHTML
-}
-
-function iconFor(kind: ButtonIconKind): string {
-  // 任务29：左上角永远用我们的「三」汉堡图标，不克隆宿主 expand/panel 的方框图标
-  if (kind === 'menu') {
-    return ICONS.menu
-  }
-  if (kind === 'plus') {
-    return cloneIcon('[class*="_sidebarCol"] [class*="_newSession"]') || ICONS.plus
-  }
-  if (kind === 'panel') {
-    return cloneIcon('[data-sidebar-right-expand]') || ICONS.panel
-  }
-  return ''
-}
-
-function makeButton(kind: ButtonIconKind, label: string, onClick: () => void): HTMLButtonElement {
-  const b = document.createElement('button')
-  b.type = 'button'
-  b.className = 'dms-iconbtn dms-' + kind
-  b.setAttribute('aria-label', label)
-  b.innerHTML = iconFor(kind)
-  b.addEventListener('click', (e) => {
-    e.preventDefault()
-    e.stopPropagation()
-    onClick()
-  })
-  return b
 }
 
 interface ShowToast {
@@ -109,9 +74,6 @@ export {
   rightbarCol,
   settingsPanel,
   hostLeftOpen,
-  cloneIcon,
-  iconFor,
-  makeButton,
   showToast,
   normalizeSeparators,
 }

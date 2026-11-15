@@ -1,176 +1,17 @@
 // dsh-mobile-shell: split source (built into lib/client.js by scripts/build.mjs)
 import { state } from '../core/state.js'
-import { $, isPhone, makeButton } from '../core/dom.js'
+import { isPhone } from '../core/dom.js'
 import {
   closeRight,
   openRight,
   rightExpandTrigger,
   toggleRightFullscreen,
 } from '../features/right-drawer.js'
-import { ensureSidebarMounted, toggleLeft } from '../features/left-drawer.js'
 
-// The hamburger button lives inside the host header leading slot so it is part
-// of the header layout (no two coordinate systems to keep in sync). React may
-// replace the leading container at any time, so a small scoped observer puts
-// the button back before the next paint.
-function bindMenuPreload(menu: HTMLElement): void {
-  if (menu.dataset.dmsPreloadBound === '1') {
-    return
-  }
-  menu.dataset.dmsPreloadBound = '1'
-  // Start mounting the host drawer on touch-down, slightly before the click,
-  // so a button-triggered open does not pay the full host commit latency.
-  menu.addEventListener('pointerdown', () => ensureSidebarMounted(), { passive: true })
-}
-
-function installMenuButton(leading: Element): void {
-  // Append only when the leading slot has no menu button. Never remove or
-  // replace an existing button; React owns the container, we only fill the gap.
-  const existing = leading.querySelector<HTMLElement>('.dms-menu')
-  if (existing !== null) {
-    bindMenuPreload(existing)
-    return
-  }
-  const menu = makeButton('menu', '打开侧边栏', () => toggleLeft())
-  bindMenuPreload(menu)
-  leading.appendChild(menu)
-}
-
-function installRightButton(header: Element, moreButton: Element | null): void {
-  // Same deployment strategy as the left hamburger: inject a normal header
-  // button into the host's right action row (the person / "..." utilities),
-  // never directly into the header and never as a fixed overlay. If that row
-  // has not rendered yet, remove any misplaced instance and wait for the
-  // header observer to call us again.
-  const utilities: Element | null =
-    moreButton !== null && moreButton.parentElement !== null
-      ? moreButton.parentElement
-      : header.querySelector('[class*="_headerUtilities"]')
-  const misplaced = [...header.querySelectorAll<HTMLElement>('.dms-right-menu')]
-  if (utilities === null) {
-    for (const button of misplaced) {
-      button.remove()
-    }
-    return
-  }
-  let existing = utilities.querySelector<HTMLElement>('.dms-right-menu')
-  for (const button of misplaced) {
-    if (button !== existing) {
-      button.remove()
-    }
-  }
-  if (existing === null) {
-    existing = makeButton('panel', '打开右侧栏', () => openRight())
-    existing.classList.add('dms-right-menu')
-  }
-  // Requested order: person, "...", right-panel button (far right).
-  if (moreButton !== null && moreButton.parentElement === utilities) {
-    if (existing.previousElementSibling !== moreButton) {
-      utilities.insertBefore(existing, moreButton.nextSibling)
-    }
-  } else if (existing.parentElement !== utilities) {
-    utilities.appendChild(existing)
-  }
-  // Hide the host's own expand control once ours is in the layout flow.
-  for (const hostExpand of header.querySelectorAll<HTMLElement>('[data-sidebar-right-expand]')) {
-    if (hostExpand === existing) {
-      continue
-    }
-    hostExpand.dataset.dmsHidden = '1'
-  }
-}
-
-function ensureTopButtons(): void {
-  if (!isPhone()) {
-    return
-  }
-  const header = $('[class*="_centerCol"] header')
-  if (header === null) {
-    return
-  }
-  const leading = header.querySelector('[data-conversation-header-leading]')
-  if (leading !== null) {
-    installMenuButton(leading)
-  }
-  const moreButton = header.querySelector(
-    '[aria-label*="更多"], [aria-label*="More"], [aria-label="..."]',
-  )
-  installRightButton(header, moreButton)
-}
-
-// Scoped repair observer: watch only the header containers that may drop our
-// button, re-insert synchronously (MutationObserver callbacks run before paint,
-// so the button does not flash), and never append when the container already
-// has one. HTML class changes are deliberately not observed to avoid a
-// reconcile loop with sync().
-function installTopbarRepair(): () => void {
-  let headerObserver: MutationObserver | null = null
-  let centerObserver: MutationObserver | null = null
-  let observedHeader: Element | null = null
-  let observedCenter: Element | null = null
-  let repairing = false
-
-  const bind = (): void => {
-    const center = $('[class*="_centerCol"]')
-    if (center !== observedCenter) {
-      if (centerObserver !== null) {
-        centerObserver.disconnect()
-      }
-      observedCenter = center
-      if (center !== null) {
-        centerObserver = new MutationObserver(repair)
-        centerObserver.observe(center, { childList: true })
-      }
-    }
-    const header = $('[class*="_centerCol"] header')
-    if (header !== observedHeader) {
-      if (headerObserver !== null) {
-        headerObserver.disconnect()
-      }
-      observedHeader = header
-      if (header !== null) {
-        headerObserver = new MutationObserver(repair)
-        headerObserver.observe(header, { childList: true, subtree: true })
-      }
-    }
-  }
-
-  function repair(): void {
-    if (repairing) {
-      return
-    }
-    repairing = true
-    try {
-      ensureTopButtons()
-      bind()
-    } catch (error) {
-      // A host re-render in the middle of repair must not break the plugin.
-    } finally {
-      repairing = false
-    }
-  }
-
-  const onPointerUp = (): void => repair()
-  document.addEventListener('pointerup', onPointerUp, { capture: true, passive: true })
-
-  ensureTopButtons()
-  bind()
-
-  return () => {
-    document.removeEventListener('pointerup', onPointerUp, { capture: true })
-    if (headerObserver !== null) {
-      headerObserver.disconnect()
-    }
-    if (centerObserver !== null) {
-      centerObserver.disconnect()
-    }
-    headerObserver = null
-    centerObserver = null
-    observedHeader = null
-    observedCenter = null
-  }
-}
-
+// Header buttons are registered through the official Slots (topbar-slots.ts).
+// What remains here is the click ownership inside the right panel and the
+// host's own expand/toggle controls: the plugin drawer is not the host panel,
+// so those clicks still need single, explicit routing.
 function installRightInterceptors(): () => void {
   const disposers: Array<() => void> = []
   const listen = (
@@ -263,4 +104,4 @@ function installRightInterceptors(): () => void {
   }
 }
 
-export { ensureTopButtons, installTopbarRepair, installRightInterceptors }
+export { installRightInterceptors }

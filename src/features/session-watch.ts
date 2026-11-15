@@ -1,13 +1,31 @@
 // dsh-mobile-shell: split source (built into lib/client.js by scripts/build.mjs)
+import type { Context } from '@deepseek-ai/cordis'
 import { state } from '../core/state.js'
-import { $, $$ } from '../core/dom.js'
 import { emit } from '../core/events.js'
 import { preloadRight } from '../features/right-drawer.js'
 
-function conversationSessionKey(): string {
-  const content = $('[data-conversation-content]')
-  const id = content === null ? '' : content.getAttribute('data-conversation-session') || ''
-  return id + '@' + location.pathname + location.search
+// Session switching used to be polled from the host DOM: a 120ms interval read
+// [data-conversation-session], and a 1500ms rAF burst covered the window around
+// a session-row tap. DSH publishes the same fact as an observable on
+// ctx.sidebarRight.mounted: the Session shown in the main column, updated before
+// React renders the selection. Subscribe to that source instead, and keep only
+// the pointer tracking that decides whether a blur would steal a fresh tap.
+
+const pendingTimers = new Set<ReturnType<typeof setTimeout>>()
+
+function later(fn: () => void, ms: number): void {
+  const id = setTimeout(() => {
+    pendingTimers.delete(id)
+    fn()
+  }, ms)
+  pendingTimers.add(id)
+}
+
+function clearPendingTimers(): void {
+  for (const id of pendingTimers) {
+    clearTimeout(id)
+  }
+  pendingTimers.clear()
 }
 
 function isEditorTarget(el: EventTarget | null): boolean {
@@ -44,92 +62,66 @@ function handleSessionSwitch(): void {
   // 任务29：切换会话后不聚焦 composer、不弹键盘；弹层立即关闭。
   emit('session-switch')
   blurHostEditor(true)
-  setTimeout(() => blurHostEditor(false), 80)
-  setTimeout(() => blurHostEditor(false), 320)
-  setTimeout(() => preloadRight(), 900)
+  later(() => blurHostEditor(false), 80)
+  later(() => blurHostEditor(false), 320)
+  later(() => preloadRight(), 900)
 }
 
-function fastSessionWatch(): void {
-  state.sessionFastRaf = 0
-  const key = conversationSessionKey()
-  if (key !== state.sessionKeyPrev) {
-    state.sessionKeyPrev = key
-    state.sessionFastUntil = 0
-    handleSessionSwitch()
-    return
-  }
-  if (performance.now() > state.sessionFastUntil) {
-    return
-  }
-  state.sessionFastRaf = requestAnimationFrame(fastSessionWatch)
-}
+function installSessionWatcher(ctx: Context): () => void {
+  let off: (() => void) | null = null
 
-function installSessionWatcher(): () => void {
-  const disposers: Array<() => void> = []
-  const listen = (
-    target: EventTarget,
-    type: string,
-    handler: (event: never) => void,
-    options?: boolean | AddEventListenerOptions,
-  ): void => {
-    target.addEventListener(type, handler as EventListener, options)
-    disposers.push(() => target.removeEventListener(type, handler as EventListener, options))
-  }
-  state.sessionKeyPrev = conversationSessionKey()
-  const startFastWatch = (): void => {
-    state.sessionFastUntil = performance.now() + 1500
-    if (state.sessionFastRaf === 0) {
-      state.sessionFastRaf = requestAnimationFrame(fastSessionWatch)
+  // Pointer tracking stays: it answers "did the user just tap the composer?"
+  // for the 80/320ms blur follow-ups. It reads the event target only.
+  ctx.effect(() => {
+    const pointer = (event: Event): void => {
+      const target = event.target instanceof Element ? event.target : null
+      state.lastPointerAt = performance.now()
+      state.lastPointerInEditor =
+        target !== null &&
+        target.closest(
+          '[contenteditable="true"], [role="textbox"], textarea, input, [data-composer-card], [data-composer-seat], [class*="_inputBar"]',
+        ) !== null
     }
-  }
-  const pointer = (event: Event): void => {
-    const target = event.target instanceof Element ? event.target : null
-    state.lastPointerAt = performance.now()
-    state.lastPointerInEditor =
-      target !== null &&
-      target.closest(
-        '[contenteditable="true"], [role="textbox"], textarea, input, [data-composer-card], [data-composer-seat], [class*="_inputBar"]',
-      ) !== null
-    if (target !== null && target.closest('[class*="_sessionRow"]') !== null) {
-      startFastWatch()
+    document.addEventListener('touchstart', pointer, { passive: true, capture: true })
+    document.addEventListener('pointerdown', pointer, { passive: true, capture: true })
+    return () => {
+      document.removeEventListener('touchstart', pointer, true)
+      document.removeEventListener('pointerdown', pointer, true)
     }
-  }
-  listen(document, 'touchstart', pointer, { passive: true, capture: true })
-  listen(document, 'pointerdown', pointer, { passive: true, capture: true })
-  const timer = setInterval(() => {
-    if (state.DEBUG_OFF.has('session-watch')) {
-      return
-    }
-    const key = conversationSessionKey()
-    if (key === state.sessionKeyPrev) {
-      return
-    }
-    state.sessionKeyPrev = key
-    handleSessionSwitch()
-  }, 120)
-  const maybeUnref = (timer as unknown as { unref?: () => void }).unref
-  if (typeof maybeUnref === 'function') {
-    maybeUnref.call(timer)
-  }
+  }, 'dsh-mobile-shell: session pointer tracking')
 
-  disposers.push(() => clearInterval(timer))
-  disposers.push(() => {
-    if (state.sessionFastRaf !== 0) {
-      cancelAnimationFrame(state.sessionFastRaf)
-    }
+  // Dynamic injection: the plugin keeps working if ui-sidebar-right is absent
+  // (the child fiber simply waits), and re-subscribes if that service reloads.
+  ctx.inject(['sidebarRight'], (child) => {
+    const source = child.sidebarRight.mounted
+    let previous = source.getSnapshot()
+    state.mountedSession = previous
+    off = source.subscribe(() => {
+      const next = source.getSnapshot()
+      state.mountedSession = next
+      if (next === previous || state.DEBUG_OFF.has('session-watch')) {
+        return
+      }
+      previous = next
+      handleSessionSwitch()
+    })
+    child.effect(() => () => {
+      if (off !== null) {
+        off()
+        off = null
+      }
+      state.mountedSession = undefined
+      clearPendingTimers()
+    }, 'dsh-mobile-shell: session-watch')
   })
+
   return () => {
-    for (let index = disposers.length - 1; index >= 0; index -= 1) {
-      disposers[index]()
+    if (off !== null) {
+      off()
+      off = null
     }
+    clearPendingTimers()
   }
 }
 
-export {
-  conversationSessionKey,
-  isEditorTarget,
-  blurHostEditor,
-  handleSessionSwitch,
-  fastSessionWatch,
-  installSessionWatcher,
-}
+export { isEditorTarget, blurHostEditor, handleSessionSwitch, installSessionWatcher }

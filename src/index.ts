@@ -19,12 +19,10 @@ import {
   syncRightChrome,
   unlockRightPanel,
 } from './features/right-drawer.js'
-import {
-  ensureTopButtons,
-  installTopbarRepair,
-  installRightInterceptors,
-} from './features/topbar.js'
-import { ensureSettings, installSettingsWatcher } from './features/settings.js'
+import { installRightInterceptors } from './features/topbar.js'
+import { installTopbarSlots } from './features/topbar-slots.js'
+import { installSettingsSlot } from './features/settings-slot.js'
+import { ensureSettings } from './features/settings.js'
 import { installGestures, installDrawerAutoClose } from './features/gestures.js'
 import { installViewTabsMenu } from './features/view-tabs.js'
 import { installKeyboard } from './features/keyboard.js'
@@ -67,7 +65,6 @@ function sync(): void {
   if (!state.rightViewTabsFallback) {
     document.documentElement.classList.add('dms-vtabs-menu')
   }
-  ensureTopButtons()
   for (const header of $$('[class*="_centerCol"] header')) {
     const conversation =
       header.querySelector(
@@ -113,7 +110,7 @@ function scrimOnce(): HTMLElement {
   return el
 }
 
-const INJECT: string[] = ['layout', 'uiWorkspace', 'workspaces']
+const INJECT: string[] = ['layout', 'uiWorkspace', 'workspaces', 'slots']
 
 function apply(ctx: Context): void {
   state.ctxRef = ctx
@@ -137,16 +134,16 @@ function apply(ctx: Context): void {
       styleOnce()
     }
     scrimOnce()
-    collect(installTopbarRepair())
+    collect(installTopbarSlots(ctx))
     collect(installBackStack())
     collect(installExitGuard())
     collect(installGestures())
     collect(installRightInterceptors())
     collect(installViewTabsMenu())
     collect(installKeyboard())
-    collect(installSettingsWatcher())
+    collect(installSettingsSlot(ctx))
     collect(installAttachSheet())
-    collect(installSessionWatcher())
+    collect(installSessionWatcher(ctx))
     if (!off.has('autoclose')) {
       collect(installDrawerAutoClose())
     }

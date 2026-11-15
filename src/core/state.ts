@@ -33,12 +33,12 @@ export interface ShellState {
   rightViewTabsFallback?: boolean
   /** 右栏预加载节流时间戳：距上次预加载不足 2000ms 时直接跳过，避免频繁点击宿主 expand。 */
   lastRightPreloadAt: number
-  /** 上一个会话 key：定期 watcher / rAF 快速 watcher 用它判断是否切换了会话。 */
-  sessionKeyPrev: string
   /** 最近一次指针是否落在编辑器/输入区内：blurHostEditor 用来判断是否要保留宿主输入焦点。 */
   lastPointerInEditor: boolean
   /** 最近一次指针时间戳：与 lastPointerInEditor 配合，900ms 内不强制抢焦点。 */
   lastPointerAt: number
+  /** 当前屏上 Session（sidebarRight.mounted 的镜像，供不注入该服务的模块读取）。 */
+  mountedSession?: string
   /** Cordis 插件上下文引用：back-stack/settings/left-drawer 通过它访问 layout 面板状态和返回逻辑。 */
   ctxRef: Context | null
   /** 手势忙碌锁：一次手势/spring 未结束时阻止新的 touch 手势进入，避免叠加动画和状态错乱。 */
@@ -47,10 +47,6 @@ export interface ShellState {
   springAnimating: boolean
   /** 调试关闭集合：解析 URL 的 ?dms-off=styles,observer,... 后保存，对应模块据此跳过安装。 */
   DEBUG_OFF: Set<string>
-  /** 会话快速观察截止时间戳：指针/切换会话后 1500ms 内用 rAF 高频检查 session key。 */
-  sessionFastUntil: number
-  /** 会话快速观察的 rAF 句柄：避免重复启动快速检查循环，销毁时取消。 */
-  sessionFastRaf: number
 }
 
 export const state: ShellState = {
@@ -64,13 +60,10 @@ export const state: ShellState = {
   rightViewMenuObserver: null,
   rightViewMenuRaf: 0,
   lastRightPreloadAt: 0,
-  sessionKeyPrev: '',
   lastPointerInEditor: false,
   lastPointerAt: 0,
   ctxRef: null,
   gestureBusy: false,
   springAnimating: false,
   DEBUG_OFF: new Set<string>(),
-  sessionFastUntil: 0,
-  sessionFastRaf: 0,
 }

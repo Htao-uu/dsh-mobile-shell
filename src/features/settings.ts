@@ -2,32 +2,16 @@
 import { state } from '../core/state.js'
 import { $, $$, settingsPanel } from '../core/dom.js'
 import { CHEVRON_LEFT, GEAR_ICON } from '../core/constants.js'
-import type { PanelInfo } from '../types/dsh.js'
-
-// The pre-2.0 layout service exposed a readable source with get()/value; the
-// current one publishes getSnapshot()/subscribe() (HostObservable). This probe
-// keeps the historical runtime behaviour and only narrows through unknown, so
-// it neither invents a field nor throws when the shape differs.
-interface LegacyPanelInfoSource {
-  get?: () => PanelInfo | undefined
-  value?: PanelInfo
-}
 
 function panelActiveId(): string | null {
   const layout = state.ctxRef && state.ctxRef.layout
   if (layout === undefined || layout === null) {
     return null
   }
+  // 0.2.2 exposes PanelInfo as a HostObservable; the old .get()/.value probe
+  // returned null forever and is gone.
   try {
-    const info: unknown = layout.panelInfo
-    const source = info as LegacyPanelInfoSource | null | undefined
-    const state =
-      source !== null && source !== undefined && typeof source === 'object'
-        ? typeof source.get === 'function'
-          ? source.get()
-          : source.value
-        : undefined
-    return state && state.activePanelId !== undefined ? state.activePanelId : null
+    return layout.panelInfo.getSnapshot().activePanelId ?? null
   } catch (error) {
     return null
   }
@@ -128,47 +112,10 @@ function ensureSettings(panel: HTMLElement): void {
   }
 }
 
-function installSettingsWatcher(): () => void {
-  const root = document.documentElement
-  const apply = (): void => {
-    const panel = settingsPanel()
-    if (panel === null) {
-      root.classList.remove(
-        'dms-settings-open',
-        'dms-settings-list',
-        'dms-settings-section',
-        'dms-settings-chrome-init',
-        'dms-plugin-section',
-      )
-      return
-    }
-    if (root.classList.contains('dms-settings-open')) {
-      return
-    }
-    settingsChrome()
-    root.classList.add('dms-settings-open', 'dms-settings-list', 'dms-settings-chrome-init')
-    root.classList.remove('dms-settings-section')
-    const title = $('.dms-settings-title-text')
-    if (title !== null) {
-      title.textContent = '设置'
-    }
-    const options = panel.querySelector<HTMLElement>('[class*="_options"]')
-    if (options !== null) {
-      options.scrollTop = 0
-    }
-  }
-  const observer = new MutationObserver(apply)
-  observer.observe(document.body, { childList: true, subtree: true })
-  apply()
-
-  return () => observer.disconnect()
-}
-
 export {
   panelActiveId,
   settingsBack,
   openSettingsSection,
   settingsChrome,
   ensureSettings,
-  installSettingsWatcher,
 }

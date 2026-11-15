@@ -1,5 +1,5 @@
-// Types copied from the DSH checkout this plugin targets:
-//   E:\DSH_WORKSPACE\DeepseekHarness\deepseek-harness
+// Types copied from the DSH checkout this plugin targets
+// (packages/client/ui-layout and packages/client/store).
 //
 // - LayoutService mirrors the used subset of ILayout from
 //   packages/client/ui-layout/src/client/service.ts (ctx.layout).
@@ -26,6 +26,33 @@ export interface ObservableSnapshot<T> {
   getSnapshot(): T
   /** Subscribe to snapshot invalidation. */
   subscribe(fn: () => void): () => void
+}
+
+/** Options accepted by the official Slot registry (the subset this plugin uses). */
+export interface SlotRegistrationOptions {
+  /** Declared Slot key. */
+  name: string
+  /** List-entry identity (required for list slots). */
+  id?: string
+  /** List order; lower renders earlier. */
+  order?: number
+  /** Cell shadowing rank. */
+  priority?: number
+}
+
+/** Minimal face of ctx.slots: register a component, wait for a declaration. */
+export interface SlotRegistryService {
+  register(
+    options: SlotRegistrationOptions,
+    component: (props: Record<string, unknown>) => unknown,
+  ): () => void
+  inject(key: string, callback: () => (() => void) | void): () => void
+}
+
+/** Minimal face of the right-sidebar controller used by session-watch. */
+export interface SidebarRightService {
+  /** Session currently shown in the main column, or undefined for a global panel. */
+  readonly mounted: ObservableSnapshot<string | undefined>
 }
 
 /** Panel navigation and geometry actions exposed through ctx.layout. */
@@ -64,5 +91,9 @@ declare module '@deepseek-ai/cordis' {
   interface Context {
     /** The outward face only; the concrete service stays inside the layout plugin. */
     layout: LayoutService
+    /** Right-Sidebar controller; only the mounted session source is used here. */
+    sidebarRight: SidebarRightService
+    /** Official UI slot registry (ui-renderer). */
+    slots: SlotRegistryService
   }
 }

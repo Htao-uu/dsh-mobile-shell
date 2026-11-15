@@ -113,7 +113,10 @@
   .dshm-scrim { display: none !important; }
   /* 任务29：顶部左上角统一为插件注入的「三」汉堡按钮；宿主 leading 里的原图标/其它
      注入项一律隐藏，避免出现方框或重复按钮。 */
-  [data-conversation-header-leading] > :not(.dms-menu):not([data-sidebar-right-expand]):not(:has([data-sidebar-right-expand])) { display: none !important; }
+  [data-conversation-header-leading] > :not(.dms-menu):not([data-sidebar-right-expand]):not([data-slot="conversation.header.leading"]):not(:has([data-sidebar-right-expand])) { display: none !important; }
+  /* Official Slot wrapper for the hamburger: keep it transparent so the hide
+     rule above cannot hide the registered .dms-menu inside it. */
+  [data-conversation-header-leading] > [data-slot="conversation.header.leading"] { display: contents !important; }
   /* 任务 28：对话页/主页面右上角直接用宿主自带的 expand 图标（不注入自建按钮），
      统一成 DSH 官方 28×28/16px 透明图标按钮规格。 */
   [class*="_centerCol"] header [data-sidebar-right-expand][data-dms-hidden="1"] {

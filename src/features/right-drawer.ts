@@ -52,6 +52,12 @@ function rightPanelEl(): HTMLElement | null {
 }
 
 function rightSessionId(): string {
+  // The controller names the on-screen Session before React renders it; the
+  // DOM attribute remains as a fallback while the right panel is mounted.
+  const mounted = state.mountedSession
+  if (mounted !== undefined) {
+    return mounted
+  }
   const panel = rightPanelEl()
   return panel === null ? '' : panel.getAttribute('data-sidebar-right-session') || ''
 }

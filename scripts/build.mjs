@@ -29,6 +29,7 @@ const options = {
   loader: { '.css': 'text' },
   define: { 'process.env.NODE_ENV': '"production"' },
   globalName: 'DMS',
+  external: ['react', 'react/jsx-runtime'],
   banner: {
     js: 'window.__ModuleLoader__.load({\n  id: "dsh-mobile-shell",\n  factory: (require) => {\n    let module = { exports: {} };\n    let exports = module.exports;\n',
   },
@@ -66,6 +67,8 @@ async function buildWithCli() {
     '--format=iife',
     '--target=es2020',
     '--global-name=DMS',
+    '--external:react',
+    '--external:react/jsx-runtime',
     '--banner:js=' +
       'window.__ModuleLoader__.load({\n  id: "dsh-mobile-shell",\n  factory: (require) => {\n    let module = { exports: {} };\n    let exports = module.exports;\n',
     '--footer:js=' +

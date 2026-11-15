@@ -13,7 +13,7 @@ dsh-mobile-shell 单独安装在 DSH Web UI 里也能工作，但只负责移动
 
 - App 与最新 APK：https://github.com/Htao-uu/dsh-android/releases/tag/v1.4.0
 - App 源码：https://github.com/Htao-uu/dsh-android
-- 推荐组合：**dsh-android 1.4.0 + dsh-mobile-shell 0.8.0+**
+- 推荐组合：**dsh-android 1.4.0 + dsh-mobile-shell 0.9.0+**
 
 **Best paired with [dsh-android](https://github.com/Htao-uu/dsh-android).**
 The plugin also works as a standalone DSH Web UI plugin, but the native camera/gallery,
@@ -22,7 +22,7 @@ settings adaptation come from the app.
 
 - Latest APK: https://github.com/Htao-uu/dsh-android/releases/tag/v1.4.0
 - App source: https://github.com/Htao-uu/dsh-android
-- Recommended bundle: **dsh-android 1.4.0 + dsh-mobile-shell 0.8.0+**
+- Recommended bundle: **dsh-android 1.4.0 + dsh-mobile-shell 0.9.0+**
 
 ## Overview / 概述
 
