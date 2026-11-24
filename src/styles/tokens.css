@@ -28,11 +28,18 @@ html[data-ds-dark-theme], body[data-ds-dark-theme], [data-ds-dark-theme] {
   color-scheme: dark;
 }
 
-@media (max-width: 1023px) {
-  /* One source of truth for the drawer width: drawers and the page push must use the
-     same value or a gap appears between the pushed page and the drawer edge (hotfix
-     Bug3: 右栏与主界面之间有空隙). */
-  html { --dms-drawer-w: min(326px, 80vw); }
-  html, body { background: var(--dms-bg); }
-  body { -webkit-tap-highlight-color: transparent; overscroll-behavior: none; }
-
+/* Phone shell only. The switch is the class isPhone() maintains, not a media
+   query: ?dms-force=1 can therefore apply these tokens on a wide screen for
+   testing, while a real desktop keeps its own layout.
+   One source of truth for the drawer width: drawers and the page push must use the
+   same value or a gap appears between the pushed page and the drawer edge (hotfix
+   Bug3: 右栏与主界面之间有空隙). */
+/* 80% of the viewport at every width: the phone look is the proportion, not a
+   fixed 326px cap (the cap made a forced wide-screen test look like a narrow
+   strip instead of the phone drawer). */
+html.dms-phone { --dms-drawer-w: 80vw; }
+html.dms-phone, html.dms-phone body { background: var(--dms-bg); }
+html.dms-phone body {
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}

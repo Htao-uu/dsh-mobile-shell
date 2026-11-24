@@ -60,6 +60,8 @@ function installAttachSheet(): () => void {
   let nativeCaps: NativeCapabilities | null = null
   let nativeCapsPromise: Promise<NativeCapabilities | null> | null = null
   const nativePending = new Map<string, NativePendingEntry>()
+  const pendingInputs = new Set<HTMLInputElement>()
+  let disposed = false
   let photoGesture: PhotoGesture | null = null
   let photoPaint: PhotoPaint | null = null
   let photoDragPoint: PhotoDragPoint | null = null
@@ -366,11 +368,13 @@ function installAttachSheet(): () => void {
     if (capture) {
       input.setAttribute('capture', capture)
     }
+    pendingInputs.add(input)
     input.addEventListener('change', () => {
+      pendingInputs.delete(input)
       const files = input.files === null ? [] : Array.from(input.files)
       input.value = ''
       input.remove()
-      if (files.length > 0) {
+      if (!disposed && files.length > 0) {
         intake(files)
       }
     })
@@ -969,6 +973,10 @@ function installAttachSheet(): () => void {
   window.__dshmBack = attachBack
 
   return () => {
+    if (disposed) {
+      return
+    }
+    disposed = true
     for (let index = disposers.length - 1; index >= 0; index -= 1) {
       disposers[index]()
     }
@@ -977,6 +985,38 @@ function installAttachSheet(): () => void {
     }
     if (typeof offSession === 'function') {
       offSession()
+    }
+    if (photoLongPressTimer !== 0) {
+      clearTimeout(photoLongPressTimer)
+      photoLongPressTimer = 0
+    }
+    stopPhotoAutoScroll()
+    if (photoSuppressTimer !== 0) {
+      clearTimeout(photoSuppressTimer)
+      photoSuppressTimer = 0
+    }
+    for (const input of pendingInputs) {
+      input.remove()
+    }
+    pendingInputs.clear()
+    // Only this instance's nodes are removed; another install may own its
+    // own .dms-attach-sheet / .dms-attach-backdrop pair.
+    if (sheet !== null) {
+      sheet.remove()
+      sheet = null
+    }
+    if (backdrop !== null) {
+      backdrop.remove()
+      backdrop = null
+    }
+    recentWrap = null
+    recentStrip = null
+    // The open class lives on <html>, shared by every instance. Drop it only
+    // when this was the last attach sheet on the page.
+    if (document.querySelectorAll('.dms-attach-sheet').length === 0) {
+      root.classList.remove('dms-attach-open')
+      root.classList.remove('dms-sheet-instant')
+      root.style.setProperty('--dms-sheet-h', '0px')
     }
   }
 }

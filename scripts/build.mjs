@@ -2,8 +2,8 @@
 /**
  * Build the single-file browser bundle DSH serves from lib/client.js.
  *
- * Source layout: src/loader.ts is the entry, src/index.ts assembles the plugin,
- * src/features/** implement behaviour and src/styles/** are plain CSS files.
+ * Source layout: src/index.ts is the entry, src/features/** implement
+ * behaviour and src/styles/** are plain CSS files.
  * esbuild inlines each CSS file through the text loader (loader '.css': 'text')
  * and emits exactly one IIFE file - the DSH client only fetches one file per
  * plugin, so there must never be a side-car .css/.js chunk.
@@ -16,7 +16,7 @@ import { createRequire } from 'node:module'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const root = join(here, '..')
-const entry = join(root, 'src', 'loader.ts')
+const entry = join(root, 'src', 'index.ts')
 const outfile = join(root, 'lib', 'client.js')
 
 const options = {

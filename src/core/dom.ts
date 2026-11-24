@@ -13,7 +13,60 @@ const $$ = <T extends Element = HTMLElement>(sel: string, root?: ParentNode | nu
   ...(root || document).querySelectorAll<T>(sel),
 ]
 
-const isPhone = (): boolean => window.matchMedia(MEDIA).matches
+/**
+ * One MediaQueryList for the lifetime of the bundle. matchMedia() returns a new
+ * object per call, and isPhone() sits in gesture/scroll paths, so keep it here.
+ */
+const phoneQuery: MediaQueryList | null =
+  typeof window === 'undefined' ? null : window.matchMedia(MEDIA)
+
+/**
+ * Testing escape hatch, read once at load: `?dms-force=1` or
+ * `localStorage.dms-force = '1'`. The URL wins, so `?dms-force=0` can
+ * override a stored flag for one run without clearing it.
+ */
+const FORCE_PHONE = ((): boolean => {
+  if (typeof window === 'undefined') {
+    return false
+  }
+  try {
+    const flag = new URLSearchParams(window.location.search).get('dms-force')
+    if (flag !== null) {
+      return flag === '1' || flag === 'true'
+    }
+    return window.localStorage.getItem('dms-force') === '1'
+  } catch (error) {
+    return false
+  }
+})()
+
+const isPhone = (): boolean => FORCE_PHONE || phoneQuery?.matches === true
+
+/** Keep the CSS switch (`html.dms-phone`) in step with isPhone(). */
+const syncPhoneClass = (): void => {
+  if (typeof document === 'undefined') {
+    return
+  }
+  document.documentElement.classList.toggle('dms-phone', isPhone())
+}
+
+/** Re-apply the class and reconcile the host when the breakpoint changes. */
+const watchPhone = (onChange: () => void): (() => void) => {
+  const query = phoneQuery
+  if (query === null) {
+    return () => {}
+  }
+  const handler = (): void => {
+    syncPhoneClass()
+    onChange()
+  }
+  if (typeof query.addEventListener === 'function') {
+    query.addEventListener('change', handler)
+    return () => query.removeEventListener('change', handler)
+  }
+  query.addListener(handler)
+  return () => query.removeListener(handler)
+}
 
 const frame = (): HTMLElement | null => $('[class*="_frame"]')
 
@@ -69,6 +122,8 @@ export {
   $,
   $$,
   isPhone,
+  syncPhoneClass,
+  watchPhone,
   frame,
   sidebarCol,
   rightbarCol,

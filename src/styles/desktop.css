@@ -1,3 +1,7 @@
-@media (min-width: 1024px) {
-  .dms-iconbtn, .dms-scrim { display: none !important; }
+/* Desktop host: keep the shell's buttons/scrim out. Keyed to the same class as
+   the phone branch, so the forced test mode is styled completely instead of
+   half a phone shell. */
+html:not(.dms-phone) .dms-iconbtn,
+html:not(.dms-phone) .dms-scrim {
+  display: none !important;
 }

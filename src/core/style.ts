@@ -49,4 +49,10 @@ function styleOnce(): HTMLStyleElement {
   return tag
 }
 
-export { CSS, styleOnce }
+function removeStyles(): void {
+  for (const tag of document.querySelectorAll('style[data-dsh-mobile-shell="styles"]')) {
+    tag.remove()
+  }
+}
+
+export { CSS, styleOnce, removeStyles }

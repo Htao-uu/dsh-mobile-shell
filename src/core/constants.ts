@@ -1,8 +1,8 @@
 // dsh-mobile-shell: split source (built into lib/client.js by scripts/build.mjs)
-import { $, $$ } from './dom.js'
 
-// 临时测试值
-const MEDIA = '(max-width: 10230px)'
+// Phone breakpoint. The CSS side is keyed to the html.dms-phone class that
+// core/dom.ts maintains, so JS and CSS cannot disagree at 1024px.
+const MEDIA = '(max-width: 1023px)'
 
 const TRIGGER = 56
 
